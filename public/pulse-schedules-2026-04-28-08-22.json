@@ -1,0 +1,45 @@
+{
+  "ok": true,
+  "version": 1,
+  "kind": "pulse-schedules-backup",
+  "exportedAt": "2026-04-28T08:23:10.814Z",
+  "counts": {
+    "recurring": 2,
+    "scheduled": 0
+  },
+  "recurring": [
+    {
+      "id": 11,
+      "phone": "972505858108-1567962405@g.us",
+      "message": "אחים יקרים\nהיום בסיעתא דישמיא וכהרגלנו בקודש\nיתקיים שיעור הגמרא הקבוע\nשימו לב שהשיעור מתקיים בציון הקדוש\nשל רבי משה אהרון פינטו\nתגיעו לחזק ולהתחזק צדיקים",
+      "fileUrl": "internal:uploads\\1777359968818-c0qtwk66.jpeg",
+      "frequency": "weekly",
+      "startAt": "2026-04-26T05:00:00.000Z",
+      "nextRunAt": "2026-05-03T05:00:00.000Z",
+      "lastRunAt": null,
+      "lastStatus": null,
+      "lastError": null,
+      "runsCount": 0,
+      "active": 1,
+      "label": null,
+      "createdAt": "2026-04-28 07:06:08"
+    },
+    {
+      "id": 10,
+      "phone": "972505858108-1567962405@g.us",
+      "message": "אחים יקרים\nהיום בסיעתא דישמיא וכהרגלנו בקודש\nיתקיים שיעור התורה הקבוע\nשימו לב שהשיעור מתקיים בציון הקדוש\nשל רבי משה אהרון פינטו\nתגיעו לחזק ולהתחזק צדיקים",
+      "fileUrl": "internal:uploads\\1777359848675-vm32oq9v.jpeg",
+      "frequency": "weekly",
+      "startAt": "2026-04-28T05:00:00.000Z",
+      "nextRunAt": "2026-05-05T05:00:00.000Z",
+      "lastRunAt": null,
+      "lastStatus": null,
+      "lastError": null,
+      "runsCount": 0,
+      "active": 1,
+      "label": null,
+      "createdAt": "2026-04-28 07:04:08"
+    }
+  ],
+  "scheduled": []
+}

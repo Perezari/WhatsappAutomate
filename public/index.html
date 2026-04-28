@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0d12" />
+  <title>Pulse — WhatsApp Operations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+
+  <!-- ======== SVG ICON LIBRARY ======== -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h3l3-9 4 18 3-9h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-dashboard" viewBox="0 0 24 24"><path d="M4 13a8 8 0 0 1 16 0M12 13l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="13" r="1.4" fill="currentColor"/></symbol>
+      <symbol id="i-send" viewBox="0 0 24 24"><path d="M3.5 11.5 20 4l-7.5 16.5-2-7.5-7-1.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+      <symbol id="i-logs" viewBox="0 0 24 24"><path d="M5 4h11l3 3v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 10h8M8 14h8M8 18h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.9 2.9l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.9-2.9l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1A2 2 0 1 1 7.1 4l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.9 2.9l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+      <symbol id="i-paperclip" viewBox="0 0 24 24"><path d="m21 12-8.5 8.5a5.5 5.5 0 0 1-7.8-7.8L13.5 4a3.7 3.7 0 0 1 5.2 5.2l-8.7 8.7a1.8 1.8 0 0 1-2.6-2.6L15 7.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 19c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16.5" cy="9" r="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M14 19c0-2.5 1.5-4.5 4-4.5s4 2 4 4.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+      <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="10" r="1.6" fill="currentColor"/><path d="m4 18 5-5 4 4 3-3 4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+      <symbol id="i-pdf" viewBox="0 0 24 24"><path d="M7 3h8l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M14 3v5h5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><text x="12" y="17" text-anchor="middle" font-size="5" font-weight="700" fill="currentColor" font-family="JetBrains Mono">PDF</text></symbol>
+      <symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3h8l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M14 3v5h5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 10v5M12 18v.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15.5-6.3L21 8M21 4v4h-4M21 12a9 9 0 0 1-15.5 6.3L3 16M3 20v-4h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.5 1.5M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.5-1.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+      
+      <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3v9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 7a7 7 0 1 0 10 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+      <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="m6 14 6-6 6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="m6 10 6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v12m0 0-4-4m4 4 4-4M4 18v1a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 20V8m0 0-4 4m4-4 4 4M4 18v1a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-edit" viewBox="0 0 24 24"><path d="M16 3.5 20.5 8 8 20.5H3.5V16L16 3.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M14 5.5 18.5 10" stroke="currentColor" stroke-width="1.6"/></symbol>
+      <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+      <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    </defs>
+  </svg>
+
+  <!-- ======== APP SHELL ======== -->
+  <div class="app">
+
+    <!-- ======== SIDEBAR ======== -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand__mark">
+          <svg viewBox="0 0 32 32" aria-hidden="true">
+            <defs>
+              <linearGradient id="brand-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#25d366"/>
+                <stop offset="1" stop-color="#0e6b3a"/>
+              </linearGradient>
+            </defs>
+            <rect x="2" y="2" width="28" height="28" rx="9" fill="url(#brand-grad)"/>
+            <path d="M9 18.5h2.4l1.6-4.5 2.6 9 2.2-7 1.6 2.5H22" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="brand__text">
+          <div class="brand__name">Pulse</div>
+          <div class="brand__sub">Operations</div>
+        </div>
+      </div>
+
+      <div class="nav-label">ניווט</div>
+      <nav class="nav">
+        <button class="nav__item is-active" data-route="dashboard">
+          <svg class="ico"><use href="#i-dashboard"/></svg>
+          <span>לוח בקרה</span>
+          <span class="nav__badge">חי</span>
+        </button>
+        <button class="nav__item" data-route="send">
+          <svg class="ico"><use href="#i-send"/></svg>
+          <span>שליחת הודעה</span>
+        </button>
+        <button class="nav__item" data-route="logs">
+          <svg class="ico"><use href="#i-logs"/></svg>
+          <span>לוגים</span>
+          <span class="nav__count" data-stat="logsCount">0</span>
+        </button>
+        <button class="nav__item" data-route="settings">
+          <svg class="ico"><use href="#i-settings"/></svg>
+          <span>הגדרות</span>
+        </button>
+      </nav>
+
+      <div class="sidebar__foot">
+        <div class="connection" id="connectionCard">
+          <div class="connection__row">
+            <span class="dot dot--off" id="connDot"></span>
+            <span class="connection__label" id="connLabel">לא מחובר</span>
+          </div>
+          <div class="connection__sub" id="connSub">פועל במצב הדגמה</div>
+          <button class="btn btn--ghost btn--sm btn--block" id="connectBtn">
+            <svg class="ico ico--sm"><use href="#i-power"/></svg>
+            <span>חבר וואטסאפ</span>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ======== MAIN ======== -->
+    <main class="main">
+
+      <!-- TOPBAR -->
+      <header class="topbar">
+        <div class="topbar__title">
+          <h1 class="page-title" id="pageTitle">לוח בקרה</h1>
+          <p class="page-sub" id="pageSub">סקירת פעילות בזמן אמת</p>
+        </div>
+
+        <div class="topbar__search">
+          <svg class="ico ico--sm"><use href="#i-search"/></svg>
+          <input type="text" placeholder="חיפוש מהיר…" id="globalSearch" />
+          <kbd>⌘ K</kbd>
+        </div>
+
+        <div class="topbar__actions">
+          <button class="icon-btn" id="themeToggle" aria-label="החלף ערכת נושא">
+            <svg class="ico ico--theme-sun"><use href="#i-sun"/></svg>
+            <svg class="ico ico--theme-moon"><use href="#i-moon"/></svg>
+          </button>
+          <div class="user-chip">
+            <div class="avatar">A</div>
+            <div class="user-chip__text">
+              <div class="user-chip__name">Ari</div>
+              <div class="user-chip__role">Operator</div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- VIEWS -->
+      <div class="views">
+
+        <!-- ======== DASHBOARD ======== -->
+        <section class="view is-active" data-view="dashboard">
+          <div class="grid grid--stats">
+            <article class="stat">
+              <div class="stat__head">
+                <span class="stat__label">נשלחו היום</span>
+                <span class="stat__chip stat__chip--up"><svg class="ico ico--sm"><use href="#i-arrow-up"/></svg><span data-stat="todayDelta">+12%</span></span>
+              </div>
+              <div class="stat__value" data-stat="today">0</div>
+              <div class="stat__foot">
+                <div class="spark" data-spark="today"></div>
+                <span class="stat__hint">מול אתמול</span>
+              </div>
+            </article>
+
+            <article class="stat">
+              <div class="stat__head">
+                <span class="stat__label">השבוע</span>
+                <span class="stat__chip stat__chip--up"><svg class="ico ico--sm"><use href="#i-arrow-up"/></svg><span data-stat="weekDelta">+24%</span></span>
+              </div>
+              <div class="stat__value" data-stat="week">0</div>
+              <div class="stat__foot">
+                <div class="spark" data-spark="week"></div>
+                <span class="stat__hint">7 ימים אחרונים</span>
+              </div>
+            </article>
+
+            <article class="stat">
+              <div class="stat__head">
+                <span class="stat__label">אחוז הצלחה</span>
+                <span class="stat__chip stat__chip--up"><svg class="ico ico--sm"><use href="#i-arrow-up"/></svg><span>+0.4%</span></span>
+              </div>
+              <div class="stat__value"><span data-stat="success">0</span><span class="stat__unit">%</span></div>
+              <div class="stat__foot">
+                <div class="bar"><div class="bar__fill" data-bar="success"></div></div>
+                <span class="stat__hint">מתוך כל ההודעות</span>
+              </div>
+            </article>
+
+            <article class="stat">
+              <div class="stat__head">
+                <span class="stat__label">בתור / נכשלו</span>
+                <span class="stat__chip stat__chip--neutral" data-stat="pendingTotal">0 ממתינות</span>
+              </div>
+              <div class="stat__value"><span data-stat="failed">0</span><span class="stat__sep">/</span><span class="stat__muted" data-stat="pending">0</span></div>
+              <div class="stat__foot">
+                <span class="stat__hint">נכשלו · ממתינות לשליחה</span>
+              </div>
+            </article>
+          </div>
+
+          <div class="grid grid--main">
+            <article class="card card--chart">
+              <header class="card__head">
+                <div>
+                  <h3 class="card__title">פעילות שליחה</h3>
+                  <p class="card__sub">14 הימים האחרונים · נשלח לעומת נכשל</p>
+                </div>
+                <div class="seg">
+                  <button class="seg__btn is-active" data-range="14">14 ימים</button>
+                  <button class="seg__btn" data-range="30">30 ימים</button>
+                  <button class="seg__btn" data-range="90">90 ימים</button>
+                </div>
+              </header>
+              <div class="chart-wrap">
+                <div class="legend">
+                  <span class="legend__item"><span class="legend__dot legend__dot--accent"></span>נשלחו</span>
+                  <span class="legend__item"><span class="legend__dot legend__dot--error"></span>נכשלו</span>
+                </div>
+                <svg id="mainChart" class="chart" preserveAspectRatio="none"></svg>
+              </div>
+            </article>
+
+            <article class="card card--feed">
+              <header class="card__head">
+                <div>
+                  <h3 class="card__title">פעילות אחרונה</h3>
+                  <p class="card__sub">5 ההודעות האחרונות</p>
+                </div>
+                <button class="link" data-route="logs">לכל הלוגים →</button>
+              </header>
+              <ul class="feed" id="recentFeed"></ul>
+            </article>
+          </div>
+
+          <div class="grid grid--main">
+            <article class="card">
+              <header class="card__head">
+                <div>
+                  <h3 class="card__title">שליחה מהירה</h3>
+                  <p class="card__sub">דלג ישירות אל מסך השליחה</p>
+                </div>
+              </header>
+              <div class="quick">
+                <button class="quick__tile" data-route="send">
+                  <svg class="ico"><use href="#i-send"/></svg>
+                  <div>
+                    <div class="quick__title">שליחה ידנית</div>
+                    <div class="quick__sub">מספר אחד · הודעה · קובץ</div>
+                  </div>
+                </button>
+                <button class="quick__tile" id="quickAuto">
+                  <svg class="ico"><use href="#i-clock"/></svg>
+                  <div>
+                    <div class="quick__title">תזמון מתקדם</div>
+                    <div class="quick__sub">חד־פעמי או חוזר</div>
+                  </div>
+                </button>
+              </div>
+            </article>
+
+            <article class="card card--small">
+              <header class="card__head">
+                <div>
+                  <h3 class="card__title">סטטוס מערכת</h3>
+                </div>
+              </header>
+              <ul class="health">
+                <li><span class="health__k">Backend</span><span class="health__v" id="healthBackend">בודק…</span></li>
+                <li><span class="health__k">WhatsApp</span><span class="health__v" id="healthWA">לא מחובר</span></li>
+                <li><span class="health__k">תזמונים פעילים</span><span class="health__v" id="healthSchedules">—</span></li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <!-- ======== SEND ======== -->
+        <section class="view" data-view="send">
+          <div class="grid grid--send">
+
+            <article class="card">
+              <header class="card__head">
+                <div>
+                  <h3 class="card__title">פרטי הודעה</h3>
+                  <p class="card__sub">בחר נמען, כתוב את ההודעה וצרף קובץ אם צריך</p>
+                </div>
+              </header>
+
+              <div class="form">
+                <div class="field">
+                  <label class="field__label">נמען</label>
+                  <div class="field__row">
+                    <div class="select-wrap">
+                      <select id="sourceSelect">
+                        <option value="manual">הזנה ידנית</option>
+                        <option value="whatsapp">מאנשי קשר וקבוצות</option>
+                      </select>
+                    </div>
+                    <div class="field__split">
+                      <input type="text" id="phoneInput" placeholder="972501234567" inputmode="tel" />
+                      <select id="contactsSelect" class="hidden">
+                        <option value="">— בחר —</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="field__hint" id="phoneHint">פורמט בינלאומי בלבד · ללא + או 0 בהתחלה</div>
+                </div>
+
+                <div class="field">
+                  <label class="field__label">הודעה</label>
+                  <textarea id="messageInput" rows="6" placeholder="כתוב כאן את ההודעה…"></textarea>
+                  <div class="field__row field__row--space">
+                    <div class="chips" id="templateChips">
+                      <button class="chip" data-tpl="hello">פתיחה ידידותית</button>
+                      <button class="chip" data-tpl="reminder">תזכורת תשלום</button>
+                      <button class="chip" data-tpl="meeting">אישור פגישה</button>
+                    </div>
+                    <span class="muted" id="charCount">0 תווים</span>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label class="field__label">צירוף קובץ</label>
+                  <div class="dropzone" id="dropzone">
+                    <input type="file" id="fileInput" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx" hidden />
+                    <div class="dropzone__inner">
+                      <svg class="ico ico--lg"><use href="#i-paperclip"/></svg>
+                      <div class="dropzone__title">גרור קובץ לכאן</div>
+                      <div class="dropzone__sub">או <button class="link" id="filePickBtn">בחר מהמחשב</button> · תמונה · PDF · מסמך</div>
+                    </div>
+                    <div class="dropzone__file hidden" id="dropzoneFile">
+                      <svg class="ico" id="filePreviewIcon"><use href="#i-file"/></svg>
+                      <div class="dropzone__file-meta">
+                        <div class="dropzone__file-name" id="fileName">—</div>
+                        <div class="dropzone__file-size" id="fileSize">—</div>
+                      </div>
+                      <button class="icon-btn icon-btn--sm" id="fileRemove" aria-label="הסר קובץ"><svg class="ico ico--sm"><use href="#i-x"/></svg></button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label class="field__label">תזמון <span class="muted">(אופציונלי)</span></label>
+                  <div class="field__row">
+                    <div class="select-wrap">
+                      <select id="recurFreq">
+                        <option value="once">חד-פעמי</option>
+                        <option value="hourly">מדי שעה</option>
+                        <option value="daily">מדי יום</option>
+                        <option value="weekly">מדי שבוע</option>
+                        <option value="monthly">מדי חודש</option>
+                      </select>
+                    </div>
+                    <input type="datetime-local" id="scheduleInput" />
+                    <button class="btn btn--ghost btn--sm" id="clearSchedule">נקה</button>
+                  </div>
+                  <div class="field__hint" id="scheduleHint">בתזמון חוזר — הזמן הראשון משמש כעוגן ומתחזר אוטומטית</div>
+                </div>
+
+                <div class="form__actions">
+                  <button class="btn btn--ghost" id="resetBtn">איפוס</button>
+                  <button class="btn btn--primary" id="sendBtn">
+                    <svg class="ico ico--sm"><use href="#i-send"/></svg>
+                    <span>שלח עכשיו</span>
+                  </button>
+                </div>
+              </div>
+            </article>
+
+            <article class="card card--preview">
+              <header class="card__head">
+                <div>
+                  <h3 class="card__title">תצוגה מקדימה</h3>
+                  <p class="card__sub">איך ההודעה תיראה בוואטסאפ</p>
+                </div>
+              </header>
+              <div class="phone">
+                <div class="phone__bar">
+                  <div class="phone__avatar">·</div>
+                  <div class="phone__name">
+                    <div id="previewName">+972 50 …</div>
+                    <div class="phone__status">מקוון</div>
+                  </div>
+                </div>
+                <div class="phone__chat">
+                  <div class="bubble" id="previewBubble">
+                    <div class="bubble__attach hidden" id="previewAttach"></div>
+                    <div class="bubble__text" id="previewText">ההודעה תופיע כאן…</div>
+                    <div class="bubble__time">
+                      <span id="previewTime">—</span>
+                      <svg viewBox="0 0 16 12" width="14" height="11"><path d="M1 6.5 4 9l5-7M7 9l4-5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="status-pill status-pill--idle" id="sendStatus">
+                <span class="dot"></span>
+                <span>מוכן לשליחה</span>
+              </div>
+            </article>
+
+          </div>
+
+          <article class="card" id="schedulesCard">
+            <header class="card__head">
+              <div>
+                <h3 class="card__title">תזמונים פעילים</h3>
+                <p class="card__sub">סקירה מלאה של ההודעות שמחכות לשליחה</p>
+              </div>
+              <div class="card__actions">
+                <button class="btn btn--ghost btn--sm" id="importSchedules" title="ייבוא מקובץ גיבוי">
+                  <svg class="ico ico--sm"><use href="#i-upload"/></svg>
+                  <span>ייבא</span>
+                </button>
+                <button class="btn btn--ghost btn--sm" id="exportSchedules" title="הורדת גיבוי כקובץ">
+                  <svg class="ico ico--sm"><use href="#i-download"/></svg>
+                  <span>גבה</span>
+                </button>
+                <button class="btn btn--ghost btn--sm" id="refreshSchedules">
+                  <svg class="ico ico--sm"><use href="#i-refresh"/></svg>
+                  <span>רענן</span>
+                </button>
+              </div>
+            </header>
+
+            <div class="schedules">
+              <div class="schedules__section">
+                <div class="schedules__heading">
+                  <span class="schedules__title">תזמון חוזר</span>
+                  <span class="muted" id="recurringCount">0</span>
+                </div>
+                <div id="recurringList" class="schedules__list">
+                  <div class="empty empty--sm">אין תזמונים חוזרים פעילים</div>
+                </div>
+              </div>
+
+              <div class="schedules__section">
+                <div class="schedules__heading">
+                  <span class="schedules__title">חד־פעמיים בתור</span>
+                  <span class="muted" id="scheduledCount">0</span>
+                </div>
+                <div id="scheduledList" class="schedules__list">
+                  <div class="empty empty--sm">אין הודעות חד־פעמיות בתור</div>
+                </div>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <!-- ======== LOGS ======== -->
+        <section class="view" data-view="logs">
+          <article class="card">
+            <header class="card__head card__head--logs">
+              <div>
+                <h3 class="card__title">לוג שליחות</h3>
+                <p class="card__sub">היסטוריה מלאה של ההודעות שנשלחו</p>
+              </div>
+              <div class="logs-toolbar">
+                <div class="search-wrap">
+                  <svg class="ico ico--sm"><use href="#i-search"/></svg>
+                  <input type="text" id="logsSearch" placeholder="חפש לפי מספר, הודעה, סטטוס…" />
+                </div>
+                <div class="seg">
+                  <button class="seg__btn is-active" data-filter="all">הכל</button>
+                  <button class="seg__btn" data-filter="success">הצליח</button>
+                  <button class="seg__btn" data-filter="pending">ממתין</button>
+                  <button class="seg__btn" data-filter="error">נכשל</button>
+                </div>
+                <button class="btn btn--ghost btn--sm" id="exportLogs">
+                  <svg class="ico ico--sm"><use href="#i-download"/></svg>
+                  <span>ייצוא CSV</span>
+                </button>
+              </div>
+            </header>
+
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>זמן</th>
+                    <th>מספר</th>
+                    <th>הודעה</th>
+                    <th>קובץ</th>
+                    <th>סטטוס</th>
+                    <th>זמן ביצוע</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="logsBody"></tbody>
+              </table>
+              <div class="empty hidden" id="logsEmpty">
+                <svg class="ico ico--lg"><use href="#i-logs"/></svg>
+                <div class="empty__title">אין לוגים להצגה</div>
+                <div class="empty__sub">כל הודעה שתישלח תופיע כאן</div>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <!-- ======== SETTINGS ======== -->
+        <section class="view" data-view="settings">
+          <div class="grid grid--settings">
+
+            <article class="card">
+              <header class="card__head">
+                <div>
+                  <h3 class="card__title">חיבור WhatsApp</h3>
+                  <p class="card__sub">סרוק את ה־QR מהטלפון כדי לחבר את החשבון</p>
+                </div>
+                <button class="btn btn--ghost btn--sm" id="qrRefresh">
+                  <svg class="ico ico--sm"><use href="#i-refresh"/></svg>
+                  <span>רענן</span>
+                </button>
+              </header>
+              <div class="qr-block">
+                <div class="qr-frame" id="qrFrame">
+                  <div class="qr-empty">
+                    <svg class="ico ico--lg"><use href="#i-power"/></svg>
+                    <div class="qr-empty__title">אין חיבור פעיל</div>
+                    <div class="qr-empty__sub">הגדר את כתובת ה־Backend ולחץ "חבר וואטסאפ"</div>
+                  </div>
+                </div>
+                <ol class="qr-steps">
+                  <li><span class="qr-steps__num">1</span><div><b>פתח WhatsApp</b> בטלפון</div></li>
+                  <li><span class="qr-steps__num">2</span><div>גש להגדרות → <b>מכשירים מקושרים</b></div></li>
+                  <li><span class="qr-steps__num">3</span><div>לחץ על <b>קישור מכשיר</b> וסרוק את הקוד</div></li>
+                  <li><span class="qr-steps__num">4</span><div>החשבון יחובר אוטומטית</div></li>
+                </ol>
+              </div>
+            </article>
+
+            <article class="card">
+              <header class="card__head">
+                <div>
+                  <h3 class="card__title">כתובת Backend</h3>
+                  <p class="card__sub">שרת WhatsApp Web שמטפל בשליחה בפועל</p>
+                </div>
+              </header>
+              <div class="form">
+                <div class="field">
+                  <label class="field__label">Base URL</label>
+                  <input type="url" id="backendUrl" placeholder="http://localhost:3001" dir="ltr" />
+                  <div class="field__hint">מצופה לחשוף: <code>GET /api/status</code> · <code>POST /api/send</code> · <code>GET /api/logs</code></div>
+                </div>
+                <div class="form__actions">
+                  <button class="btn btn--ghost" id="testBackend">בדוק חיבור</button>
+                  <button class="btn btn--primary" id="saveBackend">שמור</button>
+                </div>
+              </div>
+            </article>
+
+            <article class="card">
+              <header class="card__head">
+                <div>
+                  <h3 class="card__title">העדפות</h3>
+                  <p class="card__sub">התאמות לחוויית השימוש</p>
+                </div>
+              </header>
+              <ul class="opts">
+                <li class="opt">
+                  <div>
+                    <div class="opt__title">ערכת נושא</div>
+                    <div class="opt__sub">בהיר / כהה</div>
+                  </div>
+                  <div class="seg">
+                    <button class="seg__btn" data-theme="light">בהיר</button>
+                    <button class="seg__btn is-active" data-theme="dark">כהה</button>
+                  </div>
+                </li>
+                <li class="opt">
+                  <div>
+                    <div class="opt__title">השמע צליל בסיום שליחה</div>
+                    <div class="opt__sub">צליל עדין בעת הצלחה</div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="optSound" />
+                    <span></span>
+                  </label>
+                </li>
+                <li class="opt opt--danger">
+                  <div>
+                    <div class="opt__title">נקה לוגים מקומיים</div>
+                    <div class="opt__sub">פעולה בלתי הפיכה</div>
+                  </div>
+                  <button class="btn btn--ghost btn--danger btn--sm" id="clearLogs">
+                    <svg class="ico ico--sm"><use href="#i-trash"/></svg>
+                    <span>נקה</span>
+                  </button>
+                </li>
+              </ul>
+            </article>
+
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- ======== TOAST ======== -->
+  <div class="toast-host" id="toastHost"></div>
+
+  <!-- ======== EDIT MODAL ======== -->
+  <div class="modal" id="editModal" hidden>
+    <div class="modal__backdrop" data-action="modal-close"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <header class="modal__head">
+        <h3 class="modal__title" id="modalTitle">עריכת תזמון</h3>
+        <button class="icon-btn" data-action="modal-close" aria-label="סגור">
+          <svg class="ico ico--sm"><use href="#i-x"/></svg>
+        </button>
+      </header>
+      <div class="modal__body" id="modalBody"></div>
+      <footer class="modal__foot">
+        <button class="btn btn--ghost" data-action="modal-close">ביטול</button>
+        <button class="btn btn--primary" id="modalSave">שמור</button>
+      </footer>
+    </div>
+  </div>
+
+  <input type="file" id="importFileInput" accept="application/json,.json" hidden />
+
+  <script src="app.js"></script>
+</body>
+</html>
