@@ -862,6 +862,200 @@ const Dashboard = {
         sched.textContent = parts.join(' · ');
       }
     }
+
+    // Analytics — heatmap + top recipients + alerts.
+    Analytics.render();
+  }
+};
+
+// ============================================================
+// Analytics — heatmap, top recipients, automatic alerts
+// ============================================================
+const Analytics = {
+  render() {
+    this.renderHeatmap();
+    this.renderTopRecipients();
+    this.renderAlerts();
+  },
+
+  // Build a 7×24 matrix counting messages by [day-of-week, hour] for
+  // logs in the last 30 days. Day 0 = Sunday (Israeli week).
+  buildHeatmapData() {
+    const cutoff = Date.now() - 30 * 86400000;
+    const matrix = Array.from({ length: 7 }, () => Array(24).fill(0));
+    let max = 0;
+    for (const l of State.logs) {
+      if (l.ts < cutoff) continue;
+      const d = new Date(l.ts);
+      const dow = d.getDay();
+      const hour = d.getHours();
+      matrix[dow][hour]++;
+      if (matrix[dow][hour] > max) max = matrix[dow][hour];
+    }
+    return { matrix, max };
+  },
+
+  renderHeatmap() {
+    const root = $('#heatmap');
+    if (!root) return;
+    const { matrix, max } = this.buildHeatmapData();
+    const dayLabels = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
+
+    if (max === 0) {
+      root.innerHTML = '<div class="heatmap__empty">אין נתונים מ־30 הימים האחרונים</div>';
+      return;
+    }
+
+    // Header row of hour labels (every 3 hours to keep it compact).
+    let html = '<div class="heatmap__grid">';
+    html += '<div class="heatmap__corner"></div>';
+    for (let h = 0; h < 24; h++) {
+      const showLabel = h % 3 === 0;
+      html += `<div class="heatmap__hour-label">${showLabel ? String(h).padStart(2,'0') : ''}</div>`;
+    }
+    // 7 rows, each starts with day label, then 24 cells.
+    for (let dow = 0; dow < 7; dow++) {
+      html += `<div class="heatmap__day-label">${dayLabels[dow]}</div>`;
+      for (let h = 0; h < 24; h++) {
+        const v = matrix[dow][h];
+        const lvl = v > 0 ? Math.max(0.15, v / max) : 0;
+        const title = v > 0
+          ? `${dayLabels[dow]} · ${String(h).padStart(2,'0')}:00 — ${v} הודעות`
+          : `${dayLabels[dow]} · ${String(h).padStart(2,'0')}:00`;
+        html += `<div class="heatmap__cell" style="--lvl: ${lvl}" title="${title}" data-count="${v}"></div>`;
+      }
+    }
+    html += '</div>';
+    root.innerHTML = html;
+  },
+
+  renderTopRecipients() {
+    const root = $('#topRecipients');
+    if (!root) return;
+    const cutoff = Date.now() - 30 * 86400000;
+
+    // Aggregate { phone -> {total, success, failed, lastTs} }
+    const agg = new Map();
+    for (const l of State.logs) {
+      if (l.ts < cutoff) continue;
+      const key = l.phone;
+      if (!agg.has(key)) agg.set(key, { phone: key, total: 0, success: 0, failed: 0, lastTs: 0 });
+      const a = agg.get(key);
+      a.total++;
+      if (l.status === 'success') a.success++;
+      else if (l.status === 'error') a.failed++;
+      if (l.ts > a.lastTs) a.lastTs = l.ts;
+    }
+    const top = Array.from(agg.values())
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10);
+
+    if (!top.length) {
+      root.innerHTML = '<li class="top-list__empty">אין שליחות מ־30 הימים האחרונים</li>';
+      return;
+    }
+
+    root.innerHTML = top.map(r => {
+      const info = resolveContactInfo(r.phone);
+      const successRate = r.total ? Math.round((r.success / r.total) * 100) : 0;
+      const rateClass = successRate >= 90 ? 'is-good'
+                      : successRate >= 70 ? 'is-okay'
+                      : 'is-poor';
+      const sub = info.isGroup ? 'קבוצה' : fmt.phone(r.phone);
+      return `<li class="top-list__row" data-chatid="${info.chatId || ''}">
+        <div class="top-list__avatar top-list__avatar--placeholder">${escapeHtml(info.initials)}</div>
+        <div class="top-list__main">
+          <div class="top-list__name">${escapeHtml(info.name)}</div>
+          <div class="top-list__sub">${escapeHtml(sub)}</div>
+        </div>
+        <div class="top-list__stats">
+          <div class="top-list__count mono">${r.total}</div>
+          <div class="top-list__rate ${rateClass}">${successRate}%</div>
+        </div>
+      </li>`;
+    }).join('');
+
+    // Lazy-load profile pics for top recipients (same flow as feed).
+    $$('#topRecipients .top-list__row').forEach(async (li) => {
+      const chatId = li.dataset.chatid;
+      if (!chatId) return;
+      try {
+        const url = await ProfilePics.get(chatId);
+        if (url) {
+          const av = li.querySelector('.top-list__avatar');
+          if (av) {
+            av.style.backgroundImage = `url("${url}")`;
+            av.classList.add('top-list__avatar--has-image');
+          }
+        }
+      } catch {}
+    });
+  },
+
+  // Alerts: surface anomalies that the user should know about.
+  // Rules (any one triggers a banner):
+  //   - success rate over the last 50 messages dropped below 80%
+  //   - 5+ consecutive failures at the tail
+  //   - 0 messages sent in the last 7 days (stalled)
+  renderAlerts() {
+    const root = $('#analyticsAlerts');
+    if (!root) return;
+    const alerts = [];
+
+    // Last 50 messages → success rate
+    const last50 = State.logs.slice(0, 50);
+    if (last50.length >= 20) {
+      const ok = last50.filter(l => l.status === 'success').length;
+      const rate = (ok / last50.length) * 100;
+      if (rate < 80) {
+        alerts.push({
+          level: 'error',
+          icon: 'i-alert',
+          title: `שיעור הצלחה נמוך`,
+          msg: `${rate.toFixed(1)}% מתוך 50 ההודעות האחרונות נשלחו בהצלחה`
+        });
+      }
+    }
+
+    // Trailing failures
+    let trailingFails = 0;
+    for (const l of State.logs) {
+      if (l.status === 'error') trailingFails++;
+      else break;
+    }
+    if (trailingFails >= 5) {
+      alerts.push({
+        level: 'error',
+        icon: 'i-alert',
+        title: `${trailingFails} כשלים ברצף`,
+        msg: `הודעות אחרונות נכשלו — בדוק חיבור או הגבלות WhatsApp`
+      });
+    }
+
+    // Stalled — no activity in 7 days
+    if (State.logs.length > 0) {
+      const newest = State.logs[0]?.ts || 0;
+      const daysSince = (Date.now() - newest) / 86400000;
+      if (daysSince > 7) {
+        alerts.push({
+          level: 'warn',
+          icon: 'i-clock',
+          title: `אין פעילות ${Math.floor(daysSince)} ימים`,
+          msg: `ההודעה האחרונה נשלחה לפני זמן רב — האם המערכת מתפקדת?`
+        });
+      }
+    }
+
+    if (!alerts.length) { root.innerHTML = ''; return; }
+    root.innerHTML = alerts.map(a => `
+      <div class="alert alert--${a.level}">
+        <svg class="ico"><use href="#${a.icon}"/></svg>
+        <div class="alert__content">
+          <div class="alert__title">${escapeHtml(a.title)}</div>
+          <div class="alert__msg">${escapeHtml(a.msg)}</div>
+        </div>
+      </div>
+    `).join('');
   }
 };
 
