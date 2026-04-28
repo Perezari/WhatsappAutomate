@@ -300,6 +300,15 @@ const Dropdown = (() => {
   }
   function isOpen(inst) { return inst.wrapper.classList.contains('is-open'); }
 
+  // Tear down an enhanced select. Used when modal content is replaced.
+  function destroy(select) {
+    const inst = instances.get(select);
+    if (!inst) return;
+    if (openInstance === inst) openInstance = null;
+    inst.panel.remove();
+    instances.delete(select);
+  }
+
   function positionPanel(inst) {
     const rect = inst.trigger.getBoundingClientRect();
     const panel = inst.panel;
@@ -343,7 +352,7 @@ const Dropdown = (() => {
     if (openInstance) positionPanel(openInstance);
   });
 
-  return { enhance, rebuild };
+  return { enhance, rebuild, destroy };
 })();
 
 
@@ -884,7 +893,23 @@ const Send = {
   },
 
   renderSchedules({ recurring, scheduled }) {
-    const FREQ = { hourly: 'מדי שעה', daily: 'מדי יום', weekly: 'מדי שבוע', monthly: 'מדי חודש' };
+    const HEB_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+
+    // For weekly/monthly, derive the specific day from the schedule's
+    // anchor (startAt). Falls back to the generic label.
+    const describeFrequency = (frequency, startAt) => {
+      if (frequency === 'hourly') return 'מדי שעה';
+      if (frequency === 'daily')  return 'כל יום';
+      if (!startAt) {
+        return frequency === 'weekly' ? 'מדי שבוע' :
+               frequency === 'monthly' ? 'מדי חודש' : frequency;
+      }
+      const d = new Date(startAt);
+      if (isNaN(d.getTime())) return frequency;
+      if (frequency === 'weekly')  return `כל יום ${HEB_DAYS[d.getDay()]}`;
+      if (frequency === 'monthly') return `כל ה־${d.getDate()} בחודש`;
+      return frequency;
+    };
 
     // Build the recipient chip — for a group, show its name; for a contact,
     // show its formatted phone.
@@ -926,7 +951,7 @@ const Send = {
             <div class="sched-item__main">
               <div class="sched-item__line1">
                 ${recipientChip(r.phone)}
-                <span class="sched-item__freq">${FREQ[r.frequency] || r.frequency}</span>
+                <span class="sched-item__freq">${describeFrequency(r.frequency, r.startAt)}</span>
                 ${fileChip(r.fileUrl)}
               </div>
               <div class="sched-item__msg">${escapeHtml(r.message || '')}</div>
@@ -1429,6 +1454,9 @@ const ScheduleEditor = (() => {
     }
 
     $('#modalTitle').textContent = kind === 'recurring' ? 'עריכת תזמון חוזר' : 'עריכת הודעה מתוזמנת';
+    // Tear down any leftover dropdown panels from the previous render so
+    // we don't leave orphan elements floating in <body>.
+    $$('#modalBody select').forEach(s => Dropdown.destroy(s));
     $('#modalBody').innerHTML = `
       <div class="field">
         <label class="field__label">נמען</label>
@@ -1508,6 +1536,8 @@ const ScheduleEditor = (() => {
   function hideModal() {
     const m = $('#editModal');
     m.hidden = true;
+    // Clean up any dropdown panels we appended to <body>.
+    $$('#modalBody select').forEach(s => Dropdown.destroy(s));
     currentId = null;
     currentItem = null;
     kind = null;

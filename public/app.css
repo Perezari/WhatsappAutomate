@@ -793,7 +793,7 @@ textarea { resize: vertical; min-height: 110px; line-height: 1.55; }
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   box-shadow: 0 14px 40px -12px rgba(0,0,0,.18), 0 4px 12px -4px rgba(0,0,0,.1);
-  z-index: 1000;
+  z-index: 3000;             /* must sit above .modal (z-index 2000) */
   max-height: 320px;
   overflow-y: auto;
   padding: 4px;
