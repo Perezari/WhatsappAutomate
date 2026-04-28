@@ -901,9 +901,16 @@ const Analytics = {
     const { matrix, max } = this.buildHeatmapData();
     const dayLabels = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
 
+    const legend = $('#heatmapLegend');
     if (max === 0) {
       root.innerHTML = '<div class="heatmap__empty">אין נתונים מ־30 הימים האחרונים</div>';
+      if (legend) legend.hidden = true;
       return;
+    }
+    // Show + populate the legend with the real range now that we know it.
+    if (legend) {
+      legend.hidden = false;
+      $('#heatmapLegendMax').textContent = `${max} הודעות`;
     }
 
     // Header row of hour labels (every 3 hours to keep it compact).

@@ -247,11 +247,11 @@
               <header class="card__head">
                 <div>
                   <h3 class="card__title">מפת חום · פעילות שעתית</h3>
-                  <p class="card__sub">אילו ימים ושעות הכי פעילים אצלך</p>
+                  <p class="card__sub">כל ריבוע = שעה אחת ביום מסוים · הצבע מתחזק ככל שיש יותר הודעות באותה שעה</p>
                 </div>
                 <div class="card__actions">
-                  <span class="heatmap__legend">
-                    <span class="heatmap__legend-label">פחות</span>
+                  <span class="heatmap__legend" id="heatmapLegend" hidden>
+                    <span class="heatmap__legend-label">0 הודעות</span>
                     <span class="heatmap__legend-cells">
                       <span class="heatmap__legend-cell" style="--lvl: 0"></span>
                       <span class="heatmap__legend-cell" style="--lvl: .25"></span>
@@ -259,7 +259,7 @@
                       <span class="heatmap__legend-cell" style="--lvl: .75"></span>
                       <span class="heatmap__legend-cell" style="--lvl: 1"></span>
                     </span>
-                    <span class="heatmap__legend-label">יותר</span>
+                    <span class="heatmap__legend-label" id="heatmapLegendMax">— הודעות</span>
                   </span>
                 </div>
               </header>
