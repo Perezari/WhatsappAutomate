@@ -875,6 +875,30 @@ textarea { resize: vertical; min-height: 110px; line-height: 1.55; }
   pointer-events: auto;
   transform: translateY(0) scale(1);
 }
+.dropdown__search {
+  position: sticky;
+  top: -4px;
+  margin: -4px -4px 4px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 1;
+}
+.dropdown__search .ico { color: var(--text-muted); flex-shrink: 0; }
+.dropdown__search input {
+  flex: 1;
+  background: none;
+  border: 0;
+  outline: none;
+  font-size: 13px;
+  font-family: 'Heebo', sans-serif;
+  color: var(--text);
+  min-width: 0;
+}
+.dropdown__search input::placeholder { color: var(--text-dim); }
 .dropdown__group-label {
   font-size: 10.5px;
   font-weight: 700;
@@ -900,6 +924,11 @@ textarea { resize: vertical; min-height: 110px; line-height: 1.55; }
 }
 .dropdown__option:hover,
 .dropdown__option.is-focused { background: var(--hover); }
+/* When filtering, the [hidden] attribute is set on options/labels.
+   `display: flex` on `.dropdown__option` would otherwise win over the
+   user-agent `[hidden] { display: none }` rule, so force it. */
+.dropdown__option[hidden],
+.dropdown__group-label[hidden] { display: none !important; }
 .dropdown__option.is-selected {
   background: var(--accent-soft);
   color: var(--accent);
@@ -1184,7 +1213,7 @@ select { appearance: none; -webkit-appearance: none; padding-inline-end: 32px; c
   color: var(--text-muted);
   margin-top: 1px;
   direction: ltr;
-  text-align: end;
+  text-align: start;
   font-feature-settings: "tnum","lnum";
   font-variant-numeric: tabular-nums lining-nums;
   overflow: hidden;

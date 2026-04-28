@@ -212,6 +212,34 @@ const Dropdown = (() => {
     if (!inst) return;
     inst.panel.innerHTML = '';
 
+    // Show a search field only when there's enough content to justify it.
+    const totalOpts = select.querySelectorAll('option').length;
+    const showSearch = totalOpts > 6;
+    if (showSearch) {
+      const searchEl = document.createElement('div');
+      searchEl.className = 'dropdown__search';
+      searchEl.innerHTML = `
+        <svg class="ico ico--sm" aria-hidden="true"><use href="#i-search"/></svg>
+        <input type="text" placeholder="חפש..." autocomplete="off" />
+      `;
+      // Don't let clicks on the search row bubble up & accidentally
+      // re-trigger the trigger button.
+      searchEl.addEventListener('click', e => e.stopPropagation());
+      const searchInput = searchEl.querySelector('input');
+      searchInput.addEventListener('input', e => filterOptions(inst, e.target.value));
+      searchInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const first = inst.panel.querySelector('.dropdown__option:not([hidden])');
+          if (first) first.click();
+        }
+      });
+      inst.panel.appendChild(searchEl);
+      inst.searchInput = searchInput;
+    } else {
+      inst.searchInput = null;
+    }
+
     let any = false;
     Array.from(select.children).forEach(child => {
       if (child.tagName === 'OPTGROUP') {
@@ -232,14 +260,40 @@ const Dropdown = (() => {
       }
     });
 
-    if (!any) {
-      const empty = document.createElement('div');
-      empty.className = 'dropdown__empty';
-      empty.textContent = '— אין פריטים —';
-      inst.panel.appendChild(empty);
-    }
+    // Empty placeholder (used both when there are no options at all and
+    // when a search filter matches nothing).
+    const empty = document.createElement('div');
+    empty.className = 'dropdown__empty';
+    empty.textContent = any ? 'אין תוצאות' : '— אין פריטים —';
+    if (any) empty.hidden = true;
+    inst.panel.appendChild(empty);
+    inst.emptyEl = empty;
 
     updateLabel(inst);
+  }
+
+  // Filter visible .dropdown__option rows (and their group labels) by a
+  // case-insensitive substring match against the rendered text.
+  function filterOptions(inst, query) {
+    const q = String(query || '').trim().toLowerCase();
+    let visibleCount = 0;
+    inst.panel.querySelectorAll('.dropdown__option').forEach(el => {
+      const matches = !q || el.textContent.toLowerCase().includes(q);
+      el.hidden = !matches;
+      if (matches) visibleCount++;
+    });
+    // Hide group labels whose options have all been filtered out.
+    inst.panel.querySelectorAll('.dropdown__group-label').forEach(label => {
+      let n = label.nextElementSibling, has = false;
+      while (n && !n.classList.contains('dropdown__group-label')) {
+        if (n.classList.contains('dropdown__option') && !n.hidden) { has = true; break; }
+        n = n.nextElementSibling;
+      }
+      label.hidden = !has;
+    });
+    if (inst.emptyEl) inst.emptyEl.hidden = visibleCount > 0;
+    // Keep position glued to the trigger after the panel height changes.
+    if (openInstance === inst) positionPanel(inst);
   }
 
   function buildOptionEl(opt, inst) {
@@ -291,12 +345,22 @@ const Dropdown = (() => {
     inst.trigger.setAttribute('aria-expanded', 'true');
     openInstance = inst;
     positionPanel(inst);
+    // Auto-focus the in-panel search if present, so the user can start
+    // typing immediately.
+    if (inst.searchInput) {
+      setTimeout(() => inst.searchInput.focus({ preventScroll: true }), 0);
+    }
   }
   function close(inst) {
     inst.wrapper.classList.remove('is-open');
     inst.panel.classList.remove('is-open');
     inst.trigger.setAttribute('aria-expanded', 'false');
     if (openInstance === inst) openInstance = null;
+    // Reset filter so the next open starts clean.
+    if (inst.searchInput && inst.searchInput.value) {
+      inst.searchInput.value = '';
+      filterOptions(inst, '');
+    }
   }
   function isOpen(inst) { return inst.wrapper.classList.contains('is-open'); }
 
