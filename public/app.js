@@ -1725,9 +1725,18 @@ const Logs = {
       const lbl = l.status === 'success' ? 'הצליח' : l.status === 'error' ? 'נכשל' : 'ממתין';
       const icon = l.status === 'success' ? 'i-check' : l.status === 'error' ? 'i-alert' : 'i-clock';
       const att = l.attachment ? `<svg class="ico ico--sm" style="color:var(--text-muted)"><use href="#i-${l.attachment === 'PDF' ? 'pdf' : l.attachment === 'IMG' ? 'image' : 'file'}"/></svg>` : '<span class="muted">—</span>';
+      const info = resolveContactInfo(l.phone);
+      const isGroup = info.isGroup;
+      const nameMain = info.loading
+        ? `<span class="skel skel--name"></span>`
+        : `<span class="logs-name__text">${escapeHtml(info.name)}</span>${isGroup ? '<svg class="ico ico--xs logs-name__icon" title="קבוצה"><use href="#i-people"/></svg>' : ''}`;
+      const idShown = isGroup ? l.phone.replace('@g.us', '') : fmt.phone(l.phone);
       return `<tr>
         <td class="col-time">${fmt.full(l.ts)}</td>
-        <td class="mono">${fmt.phone(l.phone)}</td>
+        <td class="col-recipient">
+          <div class="logs-name">${nameMain}</div>
+          <div class="logs-id mono">${escapeHtml(idShown)}</div>
+        </td>
         <td class="col-msg">${escapeHtml(l.message)}</td>
         <td>${att}</td>
         <td><span class="pill ${cls}"><svg class="ico"><use href="#${icon}"/></svg>${lbl}</span></td>
@@ -2104,22 +2113,6 @@ function init() {
       Chart.renderMain(svg, State.chartRange);
     }
   }));
-
-  // Global search
-  $('#globalSearch').addEventListener('input', e => {
-    State.logsQuery = e.target.value.trim().toLowerCase();
-    if (e.target.value) {
-      Router.go('logs');
-      $('#logsSearch').value = e.target.value;
-      Logs.render();
-    }
-  });
-  $('#globalSearch').addEventListener('keydown', e => {
-    if (e.key === 'Escape') { e.target.value = ''; State.logsQuery = ''; }
-  });
-  document.addEventListener('keydown', e => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); $('#globalSearch').focus(); }
-  });
 
   // Submodules
   Send.init();
