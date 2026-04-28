@@ -590,13 +590,24 @@ const Chart = {
         hLine.setAttribute('y1', padT); hLine.setAttribute('y2', padT + innerH);
         hDot.setAttribute('cx', cx); hDot.setAttribute('cy', cy);
         const d = new Date(today.getTime() - (days - 1 - i) * 86400000);
-        const tipX = Math.min(W - padR - 110, Math.max(padL, cx - 55));
-        const tipY = Math.max(padT + 6, cy - 56);
+        const dateLabel = d.toLocaleDateString('he-IL', { day: '2-digit', month: 'short' });
+        const TIP_W = 140, TIP_H = 70;
+        const tipX = Math.min(W - padR - TIP_W, Math.max(padL, cx - TIP_W / 2));
+        const tipY = Math.max(padT + 6, cy - TIP_H - 12);
         hTip.innerHTML = `
-          <rect x="${tipX}" y="${tipY}" width="110" height="46" rx="8" fill="var(--surface-3)" stroke="var(--border-2)"/>
-          <text x="${tipX + 10}" y="${tipY + 16}" font-size="10" fill="var(--text-muted)" font-family="JetBrains Mono">${d.toLocaleDateString('he-IL', { day: '2-digit', month: 'short' })}</text>
-          <text x="${tipX + 10}" y="${tipY + 32}" font-size="12" fill="var(--accent)" font-weight="700" font-family="Plus Jakarta Sans">${sent[i]} <tspan fill="var(--text-muted)" font-weight="500">נשלחו</tspan></text>
-          <text x="${tipX + 10}" y="${tipY + 42}" font-size="10" fill="var(--error)" font-family="JetBrains Mono">${fail[i]} נכשלו</text>
+          <foreignObject x="${tipX}" y="${tipY}" width="${TIP_W}" height="${TIP_H}">
+            <div xmlns="http://www.w3.org/1999/xhtml" class="chart-tip">
+              <div class="chart-tip__date">${dateLabel}</div>
+              <div class="chart-tip__row chart-tip__row--ok">
+                <span class="chart-tip__num">${sent[i]}</span>
+                <span class="chart-tip__lbl">נשלחו</span>
+              </div>
+              <div class="chart-tip__row chart-tip__row--err">
+                <span class="chart-tip__num">${fail[i]}</span>
+                <span class="chart-tip__lbl">נכשלו</span>
+              </div>
+            </div>
+          </foreignObject>
         `;
         hover.style.display = '';
       });
