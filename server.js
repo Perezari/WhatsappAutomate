@@ -172,7 +172,8 @@ app.post('/api/send', async (req, res) => {
           file_url: fileUrl || null,
           send_at: at.toISOString(),
           source,
-          external_id: null
+          external_id: null,
+          batch_id: null
         });
         return res.json({
           ok: true,
@@ -295,6 +296,136 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 });
 
 // -------------------------------------------------------------
+// Broadcast — send the same message to many recipients with a
+// throttle between sends (anti-ban). Streams results progressively
+// over Server-Sent Events so the UI can render a live progress bar.
+// -------------------------------------------------------------
+const crypto = require('crypto');
+
+app.post('/api/broadcast', async (req, res) => {
+  const { recipients, message, fileUrl, throttleMs = 1500 } = req.body || {};
+  if (!Array.isArray(recipients) || !recipients.length) {
+    return res.status(400).json({ ok: false, error: 'NO_RECIPIENTS' });
+  }
+  if (!message && !fileUrl) {
+    return res.status(400).json({ ok: false, error: 'EMPTY_MESSAGE' });
+  }
+
+  // Switch to SSE so we can stream progress updates as we go.
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders?.();
+  const send = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+
+  const total = recipients.length;
+  send('start', { total });
+
+  const results = [];
+  const safeThrottle = Math.max(500, Math.min(10000, parseInt(throttleMs, 10) || 1500));
+
+  for (let i = 0; i < recipients.length; i++) {
+    const phone = recipients[i];
+    const t0 = Date.now();
+    try {
+      const r = await whatsapp.send(phone, message || '', fileUrl || null);
+      const duration = Date.now() - t0;
+      db.logs.write({
+        phone, message: message || '', fileUrl: fileUrl || null,
+        attachment: fileUrl ? scheduler.guessAttachment(fileUrl) : null,
+        status: 'success', source: 'broadcast', duration,
+        sentAt: new Date().toISOString(),
+        ts: Date.now()
+      });
+      results.push({ phone, ok: true, id: r?.id?._serialized || null });
+      send('progress', { i: i + 1, total, phone, ok: true });
+    } catch (e) {
+      const duration = Date.now() - t0;
+      const errMsg = e?.message || String(e);
+      db.logs.write({
+        phone, message: message || '', fileUrl: fileUrl || null,
+        attachment: fileUrl ? scheduler.guessAttachment(fileUrl) : null,
+        status: 'error', error: errMsg, source: 'broadcast', duration,
+        ts: Date.now()
+      });
+      results.push({ phone, ok: false, error: errMsg });
+      send('progress', { i: i + 1, total, phone, ok: false, error: errMsg });
+    }
+    // throttle (skip after the last one)
+    if (i < recipients.length - 1) await new Promise(r => setTimeout(r, safeThrottle));
+  }
+
+  const succeeded = results.filter(r => r.ok).length;
+  send('done', { total, succeeded, failed: total - succeeded, results });
+  res.end();
+});
+
+// Schedule a broadcast — either as a one-shot future send (sendAt) or
+// as a recurring schedule. Inserts N rows with the same batch_id so they
+// can be grouped + edited + cancelled as a unit.
+app.post('/api/broadcast/schedule', (req, res) => {
+  const { recipients, message, fileUrl, sendAt, recurring } = req.body || {};
+  if (!Array.isArray(recipients) || !recipients.length) {
+    return res.status(400).json({ ok: false, error: 'NO_RECIPIENTS' });
+  }
+  if (!message && !fileUrl) {
+    return res.status(400).json({ ok: false, error: 'EMPTY_MESSAGE' });
+  }
+
+  const batchId = 'b_' + crypto.randomBytes(6).toString('hex');
+
+  // Recurring broadcast — N rows in recurring_schedules.
+  if (recurring) {
+    const VALID = ['hourly', 'daily', 'weekly', 'monthly'];
+    if (!VALID.includes(recurring.frequency)) {
+      return res.status(400).json({ ok: false, error: 'INVALID_FREQUENCY' });
+    }
+    const start = new Date(recurring.startAt);
+    if (isNaN(start.getTime())) {
+      return res.status(400).json({ ok: false, error: 'INVALID_START_AT' });
+    }
+    const next = scheduler.computeNextRun(recurring.frequency, start.toISOString());
+    const ids = [];
+    for (const phone of recipients) {
+      const r = db.recurring.insert.run({
+        phone,
+        message,
+        file_url:    fileUrl || null,
+        frequency:   recurring.frequency,
+        start_at:    start.toISOString(),
+        next_run_at: next.toISOString(),
+        label:       recurring.label || null,
+        batch_id:    batchId
+      });
+      ids.push(r.lastInsertRowid);
+    }
+    return res.json({ ok: true, batchId, kind: 'recurring', count: ids.length, ids });
+  }
+
+  // One-shot broadcast (future-dated) — N rows in scheduled.
+  if (!sendAt) return res.status(400).json({ ok: false, error: 'MISSING_SEND_AT' });
+  const at = new Date(sendAt);
+  if (isNaN(at.getTime())) return res.status(400).json({ ok: false, error: 'INVALID_SEND_AT' });
+  if (at.getTime() <= Date.now() + 2000) {
+    return res.status(400).json({ ok: false, error: 'SEND_AT_IN_PAST' });
+  }
+  const ids = [];
+  for (const phone of recipients) {
+    const r = db.scheduled.insert.run({
+      phone,
+      message: message || '',
+      file_url: fileUrl || null,
+      send_at:  at.toISOString(),
+      source:   'broadcast',
+      external_id: null,
+      batch_id: batchId
+    });
+    ids.push(r.lastInsertRowid);
+  }
+  res.json({ ok: true, batchId, kind: 'scheduled', count: ids.length, ids });
+});
+
+// -------------------------------------------------------------
 // Test send + logout
 // -------------------------------------------------------------
 app.post('/api/test', async (req, res) => {
@@ -407,7 +538,8 @@ app.post('/api/recurring', (req, res) => {
     frequency,
     start_at:    start.toISOString(),
     next_run_at: next.toISOString(),
-    label:       label || null
+    label:       label || null,
+    batch_id:    null
   });
 
   res.json({ ok: true, id: r.lastInsertRowid, nextRunAt: next.toISOString() });
@@ -553,7 +685,8 @@ app.post('/api/import', (req, res) => {
         frequency:   r.frequency,
         start_at:    start.toISOString(),
         next_run_at: next.toISOString(),
-        label:       r.label || null
+        label:       r.label || null,
+        batch_id:    r.batchId || null
       });
       addedR++;
     } catch { skipped++; }
@@ -572,7 +705,8 @@ app.post('/api/import', (req, res) => {
         file_url:    s.fileUrl || null,
         send_at:     new Date(t).toISOString(),
         source:      'import',
-        external_id: null
+        external_id: null,
+        batch_id:    s.batchId || null
       });
       addedS++;
     } catch { skipped++; }

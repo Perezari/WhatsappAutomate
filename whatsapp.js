@@ -62,9 +62,20 @@ class WhatsAppManager {
       console.log(`[whatsapp] loading ${percent}% — ${msg}`);
     });
     this.client.on('authenticated', () => {
-      console.log('[whatsapp] authenticated ✓');
+      console.log('[whatsapp] authenticated ✓ (waiting for ready event…)');
       this.state.qrDataUrl = null;
       this.state.qrRaw = null;
+      // Fallback: WhatsApp Web sometimes never fires the `ready` event
+      // (especially with large account history). After 45s of being
+      // authenticated, assume we're ready and let the scheduler proceed —
+      // sends will start working once the puppeteer page is interactive.
+      if (this._readyFallbackTimer) clearTimeout(this._readyFallbackTimer);
+      this._readyFallbackTimer = setTimeout(() => {
+        if (!this.state.ready) {
+          console.log('[whatsapp] ready event missing — forcing ready=true (fallback)');
+          this._onReady();
+        }
+      }, 45 * 1000);
     });
     this.client.on('auth_failure', (msg) => {
       console.error('[whatsapp] auth failure:', msg);
@@ -110,6 +121,10 @@ class WhatsAppManager {
   }
 
   _onReady() {
+    if (this._readyFallbackTimer) {
+      clearTimeout(this._readyFallbackTimer);
+      this._readyFallbackTimer = null;
+    }
     this.state.connected = true;
     this.state.ready = true;
     this.state.qrDataUrl = null;
@@ -220,10 +235,23 @@ class WhatsAppManager {
       return this._contactsCache.data;
     }
     const raw = await this.client.getContacts();
-    const contacts = raw
-      .filter(c => c.id?._serialized?.endsWith('@c.us'))
-      .filter(c => c.isMyContact || c.name || c.pushname)
-      .filter(c => !c.isGroup)
+
+    // WhatsApp Web sometimes surfaces the same number twice — once as a
+    // saved contact with `name`, once as a chat partner with only
+    // `pushname`. Dedupe by phone, keeping the entry with the strongest
+    // identity (real name + isMyContact wins).
+    const score = c => (c.isMyContact ? 2 : 0) + (c.name ? 1 : 0);
+    const byPhone = new Map();
+    for (const c of raw) {
+      if (!c.id?._serialized?.endsWith('@c.us')) continue;
+      if (c.isGroup) continue;
+      if (!(c.isMyContact || c.name || c.pushname)) continue;
+      const key = c.id.user;
+      const prev = byPhone.get(key);
+      if (!prev || score(c) > score(prev)) byPhone.set(key, c);
+    }
+
+    const contacts = Array.from(byPhone.values())
       .map(c => ({
         id:       c.id._serialized,
         phone:    c.id.user,

@@ -183,6 +183,8 @@ const Dropdown = (() => {
     document.body.appendChild(panel);
 
     const inst = { select, wrapper, trigger, panel };
+    inst.multiple = !!select.multiple;
+    inst.placeholder = select.dataset.placeholder || null;
     instances.set(select, inst);
 
     // Initial build + label
@@ -303,13 +305,18 @@ const Dropdown = (() => {
     if (openInstance === inst) positionPanel(inst);
   }
 
+  function isSelected(opt, inst) {
+    if (!inst.multiple) return opt.value === inst.select.value;
+    return opt.selected;
+  }
+
   function buildOptionEl(opt, inst) {
     const el = document.createElement('div');
-    el.className = 'dropdown__option' + (opt.value === inst.select.value ? ' is-selected' : '');
+    const sel = isSelected(opt, inst);
+    el.className = 'dropdown__option' + (sel ? ' is-selected' : '');
     el.dataset.value = opt.value;
     el.setAttribute('role', 'option');
-    el.setAttribute('aria-selected', opt.value === inst.select.value ? 'true' : 'false');
-    // Detect "name · meta" pattern (used in WhatsApp contacts list) and split visually.
+    el.setAttribute('aria-selected', sel ? 'true' : 'false');
     const txt = opt.textContent || '';
     const meta = opt.dataset?.meta;
     if (meta) {
@@ -320,16 +327,46 @@ const Dropdown = (() => {
     el.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      inst.select.value = opt.value;
-      inst.select.dispatchEvent(new Event('change', { bubbles: true }));
-      updateLabel(inst);
-      close(inst);
+      if (inst.multiple) {
+        opt.selected = !opt.selected;
+        inst.select.dispatchEvent(new Event('change', { bubbles: true }));
+        // Toggle visual state without rebuilding to keep search query intact
+        el.classList.toggle('is-selected', opt.selected);
+        el.setAttribute('aria-selected', opt.selected ? 'true' : 'false');
+        updateLabel(inst);
+      } else {
+        inst.select.value = opt.value;
+        inst.select.dispatchEvent(new Event('change', { bubbles: true }));
+        updateLabel(inst);
+        close(inst);
+      }
     });
     return el;
   }
 
   function updateLabel(inst) {
     const label = inst.trigger.querySelector('.dropdown__label');
+    if (inst.multiple) {
+      const selected = Array.from(inst.select.selectedOptions);
+      if (!selected.length) {
+        label.textContent = inst.placeholder || '— בחר נמענים —';
+        label.classList.add('dropdown__label--placeholder');
+      } else if (selected.length === 1) {
+        label.textContent = selected[0].textContent;
+        label.classList.remove('dropdown__label--placeholder');
+      } else {
+        label.textContent = `${selected.length} נבחרו`;
+        label.classList.remove('dropdown__label--placeholder');
+      }
+      // Visual sync after external value changes too.
+      inst.panel.querySelectorAll('.dropdown__option').forEach(el => {
+        const opt = inst.select.querySelector(`option[value="${CSS.escape(el.dataset.value)}"]`);
+        const s = !!opt?.selected;
+        el.classList.toggle('is-selected', s);
+        el.setAttribute('aria-selected', s ? 'true' : 'false');
+      });
+      return;
+    }
     const opt = inst.select.options[inst.select.selectedIndex];
     if (opt && opt.value) {
       label.textContent = opt.textContent;
@@ -841,16 +878,34 @@ const Send = {
     const fi    = $('#fileInput');
 
     const updatePreview = () => {
+      const broadcast = $('#broadcastToggle')?.checked;
       const p = phone.value.trim();
       const m = msg.value.trim();
       const nameEl = $('#previewName');
       const idEl   = $('#previewId');
       const avEl   = $('#previewAvatar');
-      if (p) {
+
+      if (broadcast) {
+        const sel = Array.from($('#broadcastSelect').selectedOptions);
+        if (sel.length === 0) {
+          nameEl.textContent = 'בחר נמענים';
+          idEl.textContent = '';
+          avEl.textContent = '·';
+        } else if (sel.length === 1) {
+          const info = resolveContactInfo(sel[0].value);
+          nameEl.textContent = info.name;
+          idEl.textContent = info.isGroup ? '' : (fmt.phone(sel[0].value) || sel[0].value);
+          avEl.textContent = info.initials;
+        } else {
+          // Show the first 2 names + count summary
+          const firstNames = sel.slice(0, 2).map(o => resolveContactInfo(o.value).name).join(', ');
+          nameEl.textContent = firstNames + (sel.length > 2 ? ` +${sel.length - 2}` : '');
+          idEl.textContent = `Broadcast · ${sel.length} נמענים`;
+          avEl.textContent = String(sel.length);
+        }
+      } else if (p) {
         const info = resolveContactInfo(p);
         nameEl.textContent = info.name;
-        // Show the underlying chat-id/phone, but trimmed if it's a long
-        // group id so the row stays compact.
         const isGroup = /@g\.us$/.test(p);
         idEl.textContent = isGroup ? p.replace('@g.us', '') : (fmt.phone(p) || p);
         avEl.textContent = info.initials;
@@ -879,6 +934,9 @@ const Send = {
 
     phone.addEventListener('input', updatePreview);
     msg.addEventListener('input', updatePreview);
+    // Listen to multi-select changes + the broadcast toggle itself.
+    $('#broadcastSelect')?.addEventListener('change', updatePreview);
+    $('#broadcastToggle')?.addEventListener('change', updatePreview);
 
     // template chips
     const TEMPLATES = {
@@ -951,14 +1009,36 @@ const Send = {
   },
 
   applySource() {
+    const broadcast = $('#broadcastToggle')?.checked;
     const src = $('#sourceSelect').value;
     const cs = $('#contactsSelect');
     const csWrap = cs.closest('.dropdown') || cs;
+    const bs = $('#broadcastSelect');
+    const bsWrap = bs.closest('.dropdown') || bs;
     const phone = $('#phoneInput');
     const hint = $('#phoneHint');
+    const sourceWrap = $('#sourceWrap')?.closest('.dropdown') || $('#sourceWrap');
+
+    // Hide everything by default — we'll show what's needed below.
+    csWrap.classList.add('hidden');
+    bsWrap.classList.add('hidden');
+    phone.classList.add('hidden');
+
+    if (broadcast) {
+      // Broadcast mode forces source to "whatsapp" and shows the multi-select.
+      sourceWrap?.classList.add('hidden');
+      bsWrap.classList.remove('hidden');
+      Send.refreshBroadcastList();
+      if (hint) hint.textContent = 'בחירה מרובה — הודעה תישלח לכל הנמענים שנבחרו';
+      if (!State.waContacts.length && !State.waGroups.length && State.connected) {
+        Send.loadWhatsAppDirectory().then(() => Send.refreshBroadcastList());
+      }
+      return;
+    }
+
+    sourceWrap?.classList.remove('hidden');
 
     if (src === 'manual') {
-      csWrap.classList.add('hidden');
       phone.classList.remove('hidden');
       phone.placeholder = '972501234567';
       if (hint) hint.textContent = 'פורמט בינלאומי בלבד · ללא + או 0 בהתחלה';
@@ -966,16 +1046,34 @@ const Send = {
     }
 
     csWrap.classList.remove('hidden');
-    phone.classList.add('hidden');
     Send.refreshContacts();
-
     if (src === 'whatsapp') {
       if (hint) hint.textContent = 'בחירה מאנשי קשר/קבוצות שמקושרים לחשבון WhatsApp שלך';
-      // Lazy-load if list isn't ready yet
       if (!State.waContacts.length && !State.waGroups.length && State.connected) {
         Send.loadWhatsAppDirectory().then(() => Send.refreshContacts());
       }
     }
+  },
+
+  refreshBroadcastList() {
+    const bs = $('#broadcastSelect');
+    if (!bs) return;
+    const opts = [];
+    if (State.waGroups?.length) {
+      opts.push('<optgroup label="קבוצות">');
+      State.waGroups.forEach(g => {
+        opts.push(`<option value="${escapeHtml(g.id)}" data-meta="${g.participants} חברים">${escapeHtml(g.name)}</option>`);
+      });
+      opts.push('</optgroup>');
+    }
+    if (State.waContacts?.length) {
+      opts.push('<optgroup label="אנשי קשר">');
+      State.waContacts.forEach(c => {
+        opts.push(`<option value="${escapeHtml(c.phone)}" data-meta="${escapeHtml(fmt.phone(c.phone))}">${escapeHtml(c.name)}</option>`);
+      });
+      opts.push('</optgroup>');
+    }
+    bs.innerHTML = opts.join('');
   },
 
   async loadWhatsAppDirectory() {
@@ -1041,14 +1139,25 @@ const Send = {
       return frequency;
     };
 
-    // Build the recipient chip — for a group, show its name; for a contact,
-    // show its formatted phone.
+    // Build the recipient chip — for groups, show the group name with an
+    // icon; for contacts we know, show their saved name + phone underneath;
+    // for unknown numbers, show the formatted phone (LTR so the +972 prefix
+    // stays at the start).
     const recipientChip = (phone) => {
-      if (/@g\.us$/.test(phone)) {
-        const info = resolveContactInfo(phone);
+      const info = resolveContactInfo(phone);
+      if (info.isGroup) {
         return `<span class="pill pill--group" title="${escapeHtml(info.name)}">
           <svg class="ico"><use href="#i-people"/></svg>
           <span class="pill__name">${escapeHtml(info.name)}</span>
+        </span>`;
+      }
+      const knownContact = State.waContacts?.some(c =>
+        c.phone === String(phone).replace('@c.us', '')
+      );
+      if (knownContact) {
+        return `<span class="pill pill--contact" title="${escapeHtml(info.name)}">
+          <span class="pill__name">${escapeHtml(info.name)}</span>
+          <span class="pill__meta-phone">${escapeHtml(fmt.phone(phone))}</span>
         </span>`;
       }
       return `<span class="sched-item__phone">${escapeHtml(fmt.phone(phone))}</span>`;
@@ -1256,6 +1365,12 @@ const Send = {
   },
 
   async send() {
+    // Broadcast mode detour — routed to its own module which handles
+    // multi-recipient send + progress UI.
+    if ($('#broadcastToggle')?.checked) {
+      return Broadcast.run();
+    }
+
     const phone = $('#phoneInput').value.trim();
     const message = $('#messageInput').value.trim();
     const schedule = $('#scheduleInput').value;
@@ -1758,6 +1873,220 @@ const Backup = {
 };
 
 // ============================================================
+// 12d. BROADCAST — multi-recipient send (immediate or scheduled)
+// ============================================================
+const Broadcast = (() => {
+  let aborted = false;
+  let inFlight = null;
+
+  function getRecipients() {
+    const sel = $('#broadcastSelect');
+    return Array.from(sel.selectedOptions).map(o => o.value).filter(Boolean);
+  }
+
+  async function run() {
+    if (!State.backendUrl) {
+      Toast.show('Backend לא מוגדר', 'error');
+      return;
+    }
+    const recipients = getRecipients();
+    if (!recipients.length) {
+      Toast.show('בחר לפחות נמען אחד', 'error');
+      return;
+    }
+    const message = $('#messageInput').value.trim();
+    const file = State.pendingFile;
+    if (!message && !file) {
+      Toast.show('יש להזין הודעה או לצרף קובץ', 'error');
+      return;
+    }
+
+    const schedule = $('#scheduleInput').value;
+    const recurFreq = $('#recurFreq')?.value || 'once';
+    const base = State.backendUrl.replace(/\/+$/, '');
+
+    // Upload attachment first (if any) — same flow as the single-send.
+    let fileUrl = null;
+    if (file) {
+      try {
+        fileUrl = await Send.uploadFile(file.file);
+      } catch (e) {
+        Toast.show('העלאת הקובץ נכשלה: ' + e.message, 'error');
+        return;
+      }
+    }
+
+    // ---------- SCHEDULED BROADCAST ----------
+    if (schedule || recurFreq !== 'once') {
+      try {
+        const body = { recipients, message, fileUrl };
+        if (recurFreq !== 'once') {
+          if (!schedule) { Toast.show('בחר תאריך התחלה לתזמון חוזר', 'error'); return; }
+          body.recurring = { frequency: recurFreq, startAt: new Date(schedule).toISOString() };
+        } else {
+          body.sendAt = new Date(schedule).toISOString();
+        }
+        const r = await fetch(`${base}/api/broadcast/schedule`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await r.json();
+        if (!r.ok || !data.ok) throw new Error(data.error || `HTTP ${r.status}`);
+        Toast.show(`תוזמן Broadcast ל־${data.count} נמענים`, 'success');
+        // Reset the form & refresh the schedule lists.
+        $('#messageInput').value = '';
+        $('#scheduleInput').value = '';
+        if ($('#recurFreq')) $('#recurFreq').value = 'once';
+        State.pendingFile = null;
+        Send.refreshSchedules();
+      } catch (e) {
+        Toast.show('תזמון נכשל: ' + e.message, 'error');
+      }
+      return;
+    }
+
+    // ---------- IMMEDIATE BROADCAST (SSE) ----------
+    showModal();
+    aborted = false;
+    setProgress(0, recipients.length, 0);
+    $('#bcResults').innerHTML = '';
+    $('#bcSummary').hidden = true;
+    $('#bcDone').hidden = true;
+    $('#bcCancel').hidden = false;
+    $('#bcClose').hidden = true;
+
+    try {
+      const r = await fetch(`${base}/api/broadcast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipients, message, fileUrl, throttleMs: 1500 })
+      });
+      inFlight = r;
+      if (!r.ok || !r.body) throw new Error(`HTTP ${r.status}`);
+      await consumeStream(r.body);
+    } catch (e) {
+      Toast.show('Broadcast נכשל: ' + e.message, 'error');
+      finishWith(null, e.message);
+    } finally {
+      inFlight = null;
+    }
+  }
+
+  // Parse SSE chunks coming from the backend's response body.
+  async function consumeStream(body) {
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let succeeded = 0, total = 0;
+
+    const handleEvent = (event, data) => {
+      if (event === 'start') {
+        total = data.total;
+        setProgress(0, total, 0);
+      } else if (event === 'progress') {
+        if (data.ok) succeeded++;
+        appendResult(data);
+        setProgress(data.i, data.total, succeeded);
+      } else if (event === 'done') {
+        finishWith(data);
+      }
+    };
+
+    while (true) {
+      if (aborted) { reader.cancel().catch(() => {}); break; }
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      // SSE separator is double-newline.
+      let idx;
+      while ((idx = buf.indexOf('\n\n')) !== -1) {
+        const block = buf.slice(0, idx); buf = buf.slice(idx + 2);
+        const lines = block.split('\n');
+        let event = 'message', data = '';
+        for (const line of lines) {
+          if (line.startsWith('event:')) event = line.slice(6).trim();
+          else if (line.startsWith('data:')) data += line.slice(5).trim();
+        }
+        if (data) {
+          try { handleEvent(event, JSON.parse(data)); } catch { /* skip */ }
+        }
+      }
+    }
+  }
+
+  function setProgress(current, total, succeeded) {
+    $('#bcCurrent').textContent = current;
+    $('#bcTotal').textContent = total;
+    const pct = total ? Math.round((current / total) * 100) : 0;
+    $('#bcPct').textContent = pct + '%';
+    $('#bcFill').style.width = pct + '%';
+  }
+
+  function appendResult(p) {
+    const ul = $('#bcResults');
+    const info = resolveContactInfo(p.phone);
+    const li = document.createElement('li');
+    li.className = 'bc-result ' + (p.ok ? 'bc-result--ok' : 'bc-result--err');
+    li.innerHTML = `
+      <span class="bc-result__icon">${p.ok ? '✓' : '✕'}</span>
+      <span class="bc-result__name">${escapeHtml(info.name)}</span>
+      ${p.ok ? '' : `<span class="bc-result__err" title="${escapeHtml(p.error || '')}">${escapeHtml((p.error || 'נכשל').slice(0, 40))}</span>`}
+    `;
+    ul.insertBefore(li, ul.firstChild);
+  }
+
+  function finishWith(summary, errMsg) {
+    if (summary) {
+      $('#bcSummary').innerHTML = `
+        <div class="bc-summary__row"><span>נשלחו בהצלחה</span><strong>${summary.succeeded}</strong></div>
+        <div class="bc-summary__row bc-summary__row--err"><span>נכשלו</span><strong>${summary.failed}</strong></div>
+      `;
+      $('#bcSummary').hidden = false;
+      Toast.show(`${summary.succeeded}/${summary.total} נשלחו`, summary.failed ? 'info' : 'success');
+    } else if (errMsg) {
+      $('#bcSummary').innerHTML = `<div class="bc-summary__row bc-summary__row--err">${escapeHtml(errMsg)}</div>`;
+      $('#bcSummary').hidden = false;
+    }
+    $('#bcCancel').hidden = true;
+    $('#bcDone').hidden = false;
+    $('#bcClose').hidden = false;
+    // Refresh logs in the background.
+    Connection.syncLogs?.();
+  }
+
+  function showModal() { $('#broadcastModal').hidden = false; }
+  function hideModal() {
+    $('#broadcastModal').hidden = true;
+    aborted = false;
+  }
+
+  // Wire modal buttons (set once).
+  document.addEventListener('DOMContentLoaded', () => {
+    $('#bcCancel')?.addEventListener('click', () => {
+      aborted = true;
+      try { inFlight && inFlight.body && inFlight.body.cancel(); } catch {}
+      hideModal();
+    });
+    $('#bcDone')?.addEventListener('click', hideModal);
+    $('#bcClose')?.addEventListener('click', hideModal);
+  });
+  // In case DOM is already ready when this script runs (it usually is, since
+  // app.js is loaded at the end of <body>).
+  setTimeout(() => {
+    $('#bcCancel')?.addEventListener('click', () => {
+      aborted = true;
+      try { inFlight && inFlight.body && inFlight.body.cancel(); } catch {}
+      hideModal();
+    });
+    $('#bcDone')?.addEventListener('click', hideModal);
+    $('#bcClose')?.addEventListener('click', hideModal);
+  }, 0);
+
+  return { run, hideModal };
+})();
+
+// ============================================================
 // 13. LOGS VIEW
 // ============================================================
 const Logs = {
@@ -2061,6 +2390,8 @@ const Connection = {
       State.connected = !!s.connected;
       State.qr = s.qr || null;
       State.loading = s.loading || null;
+      // Account info (pushname, wid) — used to populate the topbar user chip.
+      State.info = s.info || null;
       // Pick up scheduling counters so the Dashboard health card stays
       // in sync without needing a separate fetch.
       if (s.stats) {
@@ -2073,8 +2404,10 @@ const Connection = {
       State.connected = false;
       State.qr = null;
       State.loading = null;
+      State.info = null;
     }
     Connection.renderUI();
+    Connection.renderUserChip();
     if (State.route === 'dashboard') Dashboard.render();
 
     // Once connected, keep contacts/groups in sync. Retries until we
@@ -2116,6 +2449,61 @@ const Connection = {
     saveLogs();
     if (State.route === 'dashboard') Dashboard.render();
     if (State.route === 'logs')      Logs.render();
+  },
+  renderUserChip() {
+    const nameEl = $('#userName');
+    const roleEl = $('#userRole');
+    const avEl   = $('#userAvatar');
+    if (!nameEl) return;
+
+    const info = State.info;
+    if (!State.backendUrl) {
+      nameEl.textContent = 'מצב הדגמה';
+      roleEl.textContent = 'ללא חיבור';
+      avEl.textContent = '·';
+      avEl.style.backgroundImage = '';
+      return;
+    }
+    if (!State.connected || !info) {
+      nameEl.textContent = '—';
+      roleEl.textContent = State.loading?.percent ? `טוען ${State.loading.percent}%` : 'לא מחובר';
+      avEl.textContent = '·';
+      avEl.style.backgroundImage = '';
+      return;
+    }
+
+    // Display name + initials.
+    const name = info.pushname || info.wid?.split('@')[0] || 'משתמש';
+    nameEl.textContent = name;
+    roleEl.textContent = 'מחובר';
+    const initials = (name.match(/[\u05D0-\u05EAA-Za-z]/g) || [name[0]]).slice(0, 2).join('');
+    avEl.textContent = initials.toUpperCase() || '·';
+
+    // Lazy-load own profile picture using the existing /api/profile-pic endpoint.
+    if (info.wid && info.wid !== State.lastAvatarFetchedFor) {
+      State.lastAvatarFetchedFor = info.wid;
+      ProfilePics.get(info.wid).then(url => {
+        if (url) {
+          // Topbar avatar
+          avEl.style.backgroundImage = `url("${url}")`;
+          avEl.style.backgroundSize = 'cover';
+          avEl.style.backgroundPosition = 'center';
+          avEl.classList.add('avatar--has-image');
+          // Mirror to the preview's sender avatar so the preview shows
+          // the message coming from "me" with the same identity.
+          const senderAv = $('#previewSenderAvatar');
+          if (senderAv) {
+            senderAv.style.backgroundImage = `url("${url}")`;
+            senderAv.classList.add('has-image');
+          }
+        }
+      }).catch(() => {});
+    }
+    // Always sync initials (works even before the photo arrives).
+    const senderAv = $('#previewSenderAvatar');
+    if (senderAv && !senderAv.classList.contains('has-image')) {
+      senderAv.textContent = avEl.textContent;
+    }
   },
   renderUI() {
     const dot = $('#connDot');
@@ -2195,10 +2583,13 @@ function init() {
   Settings.init();
 
   // Enhance native <select>s into our custom dropdown component.
-  ['#sourceSelect', '#contactsSelect', '#recurFreq'].forEach(sel => {
+  ['#sourceSelect', '#contactsSelect', '#recurFreq', '#broadcastSelect'].forEach(sel => {
     const el = document.querySelector(sel);
     if (el) Dropdown.enhance(el);
   });
+
+  // Broadcast toggle — switches the recipient picker between single and multi.
+  $('#broadcastToggle')?.addEventListener('change', () => Send.applySource());
 
   // If a real backend is configured, ditch any leftover demo data and
   // adopt the server's logs as the source of truth. seedDemo() is a no-op

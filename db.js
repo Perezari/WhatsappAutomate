@@ -45,6 +45,7 @@ sqlite.exec(`
     status       TEXT NOT NULL DEFAULT 'pending',-- 'pending' | 'processing' | 'sent' | 'failed' | 'cancelled'
     source       TEXT DEFAULT 'manual',          -- 'manual' | 'api'
     external_id  TEXT UNIQUE,                    -- dedupe key (rarely used)
+    batch_id     TEXT,                            -- groups rows that belong to the same broadcast
     error        TEXT,
     sent_at      TEXT,
     created_at   TEXT DEFAULT (datetime('now'))
@@ -70,9 +71,21 @@ sqlite.exec(`
     runs_count      INTEGER NOT NULL DEFAULT 0,
     active          INTEGER NOT NULL DEFAULT 1,    -- 0/1
     label           TEXT,
+    batch_id        TEXT,                          -- groups recurring rows from the same broadcast
     created_at      TEXT DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS idx_recurring_due ON recurring_schedules(active, next_run_at);
+`);
+
+// Add the batch_id columns retroactively for existing DBs (idempotent).
+// MUST run BEFORE we create indexes that reference batch_id, otherwise
+// the index creation fails on databases that pre-date this column.
+for (const t of ['scheduled', 'recurring_schedules']) {
+  try { sqlite.exec(`ALTER TABLE ${t} ADD COLUMN batch_id TEXT`); } catch { /* already exists */ }
+}
+sqlite.exec(`
+  CREATE INDEX IF NOT EXISTS idx_sched_batch     ON scheduled(batch_id);
+  CREATE INDEX IF NOT EXISTS idx_recurring_batch ON recurring_schedules(batch_id);
 `);
 
 // -------------------------------------------------------------
@@ -140,7 +153,7 @@ logs.write = (row) => logs.insert.run({
 // -------------------------------------------------------------
 const SCHED_SELECT = `
   SELECT id, phone, message, file_url AS fileUrl, send_at AS sendAt,
-         status, source, external_id AS externalId, error,
+         status, source, external_id AS externalId, batch_id AS batchId, error,
          sent_at AS sentAt, created_at AS createdAt
   FROM scheduled
 `;
@@ -148,9 +161,9 @@ const SCHED_SELECT = `
 const scheduled = {
   insert: sqlite.prepare(`
     INSERT OR IGNORE INTO scheduled
-      (phone, message, file_url, send_at, source, external_id)
+      (phone, message, file_url, send_at, source, external_id, batch_id)
     VALUES
-      (@phone, @message, @file_url, @send_at, @source, @external_id)
+      (@phone, @message, @file_url, @send_at, @source, @external_id, @batch_id)
   `),
 
   dueNow: sqlite.prepare(`
@@ -206,16 +219,16 @@ const RECUR_SELECT = `
   SELECT id, phone, message, file_url AS fileUrl, frequency,
          start_at AS startAt, next_run_at AS nextRunAt,
          last_run_at AS lastRunAt, last_status AS lastStatus, last_error AS lastError,
-         runs_count AS runsCount, active, label, created_at AS createdAt
+         runs_count AS runsCount, active, label, batch_id AS batchId, created_at AS createdAt
   FROM recurring_schedules
 `;
 
 const recurring = {
   insert: sqlite.prepare(`
     INSERT INTO recurring_schedules
-      (phone, message, file_url, frequency, start_at, next_run_at, label)
+      (phone, message, file_url, frequency, start_at, next_run_at, label, batch_id)
     VALUES
-      (@phone, @message, @file_url, @frequency, @start_at, @next_run_at, @label)
+      (@phone, @message, @file_url, @frequency, @start_at, @next_run_at, @label, @batch_id)
   `),
 
   dueNow: sqlite.prepare(`

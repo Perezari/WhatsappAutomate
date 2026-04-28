@@ -140,12 +140,12 @@
             <svg class="ico ico--theme-sun"><use href="#i-sun"/></svg>
             <svg class="ico ico--theme-moon"><use href="#i-moon"/></svg>
           </button>
-          <div class="user-chip">
+          <div class="user-chip" id="userChip">
             <div class="user-chip__text">
-              <div class="user-chip__name">Ari</div>
-              <div class="user-chip__role">Operator</div>
+              <div class="user-chip__name" id="userName">—</div>
+              <div class="user-chip__role" id="userRole">לא מחובר</div>
             </div>
-            <div class="avatar">A</div>
+            <div class="avatar" id="userAvatar">·</div>
           </div>
         </div>
       </header>
@@ -293,9 +293,18 @@
 
               <div class="form">
                 <div class="field">
-                  <label class="field__label">נמען</label>
+                  <label class="field__label">
+                    <span>נמען</span>
+                    <span class="field__label-actions">
+                      <label class="mini-switch" title="שליחה ל־כמה נמענים בו זמנית">
+                        <input type="checkbox" id="broadcastToggle" />
+                        <span class="mini-switch__track"></span>
+                        <span class="mini-switch__label">Broadcast</span>
+                      </label>
+                    </span>
+                  </label>
                   <div class="field__row">
-                    <div class="select-wrap">
+                    <div class="select-wrap" id="sourceWrap">
                       <select id="sourceSelect">
                         <option value="manual">הזנה ידנית</option>
                         <option value="whatsapp">מאנשי קשר וקבוצות</option>
@@ -306,6 +315,7 @@
                       <select id="contactsSelect" class="hidden">
                         <option value="">— בחר —</option>
                       </select>
+                      <select id="broadcastSelect" class="hidden" multiple data-placeholder="— בחר נמענים —"></select>
                     </div>
                   </div>
                   <div class="field__hint" id="phoneHint">פורמט בינלאומי בלבד · ללא + או 0 בהתחלה</div>
@@ -391,12 +401,15 @@
                   </div>
                 </div>
                 <div class="phone__chat">
-                  <div class="bubble" id="previewBubble">
-                    <div class="bubble__attach hidden" id="previewAttach"></div>
-                    <div class="bubble__text" id="previewText">ההודעה תופיע כאן…</div>
-                    <div class="bubble__time">
-                      <span id="previewTime">—</span>
-                      <svg viewBox="0 0 16 12" width="14" height="11"><path d="M1 6.5 4 9l5-7M7 9l4-5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <div class="phone__msg phone__msg--out">
+                    <div class="phone__msg-avatar" id="previewSenderAvatar">·</div>
+                    <div class="bubble" id="previewBubble">
+                      <div class="bubble__attach hidden" id="previewAttach"></div>
+                      <div class="bubble__text" id="previewText">ההודעה תופיע כאן…</div>
+                      <div class="bubble__time">
+                        <span id="previewTime">—</span>
+                        <svg viewBox="0 0 16 12" width="16" height="12"><path d="M1 6.5 4 9l5-7M7 9l4-5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -627,6 +640,34 @@
   </div>
 
   <input type="file" id="importFileInput" accept="application/json,.json" hidden />
+
+  <!-- ======== BROADCAST PROGRESS MODAL ======== -->
+  <div class="modal" id="broadcastModal" hidden>
+    <div class="modal__backdrop"></div>
+    <div class="modal__panel modal__panel--lg" role="dialog" aria-modal="true" aria-labelledby="bcTitle">
+      <header class="modal__head">
+        <h3 class="modal__title" id="bcTitle">שולח Broadcast</h3>
+        <button class="icon-btn" id="bcClose" aria-label="סגור" hidden>
+          <svg class="ico ico--sm"><use href="#i-x"/></svg>
+        </button>
+      </header>
+      <div class="modal__body">
+        <div class="bc-progress">
+          <div class="bc-progress__bar"><div class="bc-progress__fill" id="bcFill"></div></div>
+          <div class="bc-progress__text">
+            <span id="bcCurrent">0</span><span class="bc-progress__sep">/</span><span id="bcTotal">0</span>
+            <span class="bc-progress__pct" id="bcPct">0%</span>
+          </div>
+        </div>
+        <ul class="bc-results" id="bcResults"></ul>
+        <div class="bc-summary" id="bcSummary" hidden></div>
+      </div>
+      <footer class="modal__foot">
+        <button class="btn btn--ghost" id="bcCancel">בטל</button>
+        <button class="btn btn--primary" id="bcDone" hidden>סגור</button>
+      </footer>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>
