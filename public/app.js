@@ -81,10 +81,17 @@ const Storage = {
 // 3. STATE
 // ============================================================
 const persisted = Storage.load();
+// When the dashboard is served straight from the backend (e.g. visiting
+// http://100.112.26.103:3001 on a phone), the page's own origin is the
+// backend URL. Use it as the default when nothing is persisted yet so
+// first-visit on a new device just works.
+const inferredBackend = window.location.port
+  ? window.location.origin
+  : '';
 const State = {
   theme:       persisted.theme       ?? 'dark',
   route:       'dashboard',
-  backendUrl:  persisted.backendUrl  ?? '',
+  backendUrl:  persisted.backendUrl  ?? inferredBackend,
   optSound:    persisted.optSound    ?? false,
   connected:   false,
   qr:          null,
@@ -978,14 +985,14 @@ const Send = {
       ]);
       State.waContacts = contactsRes?.contacts || [];
       State.waGroups   = groupsRes?.groups   || [];
-      State.waLoaded   = true;
       return { contacts: State.waContacts.length, groups: State.waGroups.length };
     } catch {
       return null;
     } finally {
       State.waLoading = false;
-      // Now that names are available, repaint anything that displayed a
-      // fallback "קבוצה" label while we were loading.
+      // Mark as "finished trying" even on failure — otherwise resolveContactInfo
+      // returns loading:true forever and the UI is stuck on shimmer skeletons.
+      State.waLoaded   = true;
       if (State.route === 'dashboard') Dashboard.render();
       if (State.route === 'logs') Logs.render();
     }
