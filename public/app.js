@@ -681,13 +681,24 @@ const Dashboard = {
         const sub = info.isGroup
           ? `<span class="feed__sub-icon" title="קבוצה"><svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 7a2 2 0 100-4 2 2 0 000 4zm0 1c-2.2 0-4 1.3-4 3v1h8v-1c0-1.7-1.8-3-4-3zm5-1a2 2 0 100-4 2 2 0 000 4zm.5 1c-.4 0-.8 0-1.2.1.7.7 1.2 1.7 1.2 2.9V12h4v-1c0-1.7-1.8-3-4-3z"/></svg></span> ${escapeHtml(info.sub)}`
           : escapeHtml(info.sub || '');
+        // While the directory is still loading, show shimmer skeletons in
+        // place of the (currently-fallback) name + sub.
+        const nameHTML = info.loading
+          ? `<span class="skel skel--name"></span>`
+          : escapeHtml(info.name);
+        const subHTML = info.loading
+          ? `<span class="skel skel--sub"></span>`
+          : sub;
+        const avatarHTML = info.loading
+          ? `<div class="feed__avatar feed__avatar--placeholder feed__avatar--loading"></div>`
+          : `<div class="feed__avatar feed__avatar--placeholder">${escapeHtml(info.initials)}</div>`;
         return `<li class="feed__item" data-chatid="${info.chatId || ''}">
-          <div class="feed__avatar feed__avatar--placeholder">${escapeHtml(info.initials)}</div>
+          ${avatarHTML}
           <div class="feed__main">
             <div class="feed__top">
               <div class="feed__id-block">
-                <div class="feed__name">${escapeHtml(info.name)}</div>
-                <div class="feed__sub">${sub}</div>
+                <div class="feed__name">${nameHTML}</div>
+                <div class="feed__sub">${subHTML}</div>
               </div>
               <span class="pill ${cls}"><span class="dot"></span>${txt}</span>
             </div>
@@ -717,9 +728,17 @@ const Dashboard = {
     $('#healthWA').textContent = State.connected ? 'מחובר' : 'לא מחובר';
     $('#healthWA').style.color = State.connected ? 'var(--accent)' : 'var(--text-muted)';
     const sched = $('#healthSchedules');
-    if (sched) sched.textContent = State.scheduleStats
-      ? `${State.scheduleStats.recurring} חוזר · ${State.scheduleStats.scheduled} בתור`
-      : '—';
+    if (sched) {
+      const s = State.scheduleStats;
+      if (!s || (s.recurring + s.scheduled) === 0) {
+        sched.textContent = '—';
+      } else {
+        const parts = [];
+        if (s.recurring) parts.push(`${s.recurring} חוזר${s.recurring > 1 ? 'ים' : ''}`);
+        if (s.scheduled) parts.push(`${s.scheduled} בתור`);
+        sched.textContent = parts.join(' · ');
+      }
+    }
   }
 };
 
@@ -738,7 +757,22 @@ const Send = {
     const updatePreview = () => {
       const p = phone.value.trim();
       const m = msg.value.trim();
-      $('#previewName').textContent = p ? fmt.phone(p) : '+972 50 …';
+      const nameEl = $('#previewName');
+      const idEl   = $('#previewId');
+      const avEl   = $('#previewAvatar');
+      if (p) {
+        const info = resolveContactInfo(p);
+        nameEl.textContent = info.name;
+        // Show the underlying chat-id/phone, but trimmed if it's a long
+        // group id so the row stays compact.
+        const isGroup = /@g\.us$/.test(p);
+        idEl.textContent = isGroup ? p.replace('@g.us', '') : (fmt.phone(p) || p);
+        avEl.textContent = info.initials;
+      } else {
+        nameEl.textContent = 'בחר נמען';
+        idEl.textContent = '';
+        avEl.textContent = '·';
+      }
       $('#previewText').textContent = m || 'ההודעה תופיע כאן…';
       $('#previewTime').textContent = fmt.time(Date.now());
       $('#charCount').textContent = `${m.length} תווים`;
@@ -860,6 +894,7 @@ const Send = {
 
   async loadWhatsAppDirectory() {
     if (!State.backendUrl) return null;
+    State.waLoading = true;
     try {
       const base = State.backendUrl.replace(/\/+$/, '');
       const [contactsRes, groupsRes] = await Promise.all([
@@ -868,8 +903,17 @@ const Send = {
       ]);
       State.waContacts = contactsRes?.contacts || [];
       State.waGroups   = groupsRes?.groups   || [];
+      State.waLoaded   = true;
       return { contacts: State.waContacts.length, groups: State.waGroups.length };
-    } catch { return null; }
+    } catch {
+      return null;
+    } finally {
+      State.waLoading = false;
+      // Now that names are available, repaint anything that displayed a
+      // fallback "קבוצה" label while we were loading.
+      if (State.route === 'dashboard') Dashboard.render();
+      if (State.route === 'logs') Logs.render();
+    }
   },
 
   async refreshSchedules() {
@@ -1873,12 +1917,17 @@ function resolveContactInfo(phoneOrChatId) {
   const v = String(phoneOrChatId || '');
   const isGroup = /@g\.us$/.test(v);
   const chatId = ProfilePics.resolve(v);
+  // True when we *might* be able to resolve this once the WhatsApp
+  // contact directory finishes loading — used to render shimmer rows.
+  const dirReady = !!State.waLoaded;
+  const dirLoading = !!State.waLoading;
 
   if (isGroup) {
     const g = State.waGroups?.find(g => g.id === v);
     return {
       chatId,
       isGroup: true,
+      loading: !g && (dirLoading || !dirReady),
       name: g?.name || 'קבוצה',
       sub: g ? `${g.participants} חברים` : v.replace('@g.us', '').slice(0, 14) + '…',
       initials: (g?.name || 'ק').slice(0, 2)
@@ -1888,6 +1937,7 @@ function resolveContactInfo(phoneOrChatId) {
   return {
     chatId,
     isGroup: false,
+    loading: !c && (dirLoading || !dirReady),
     name: c?.name || fmt.phone(v) || v,
     sub: c ? fmt.phone(c.phone) : '',
     initials: ((c?.name || v).match(/[\u05D0-\u05EAA-Za-z]/g) || [v.slice(-2)]).slice(0, 2).join('')
@@ -1916,12 +1966,21 @@ const Connection = {
       State.connected = !!s.connected;
       State.qr = s.qr || null;
       State.loading = s.loading || null;
+      // Pick up scheduling counters so the Dashboard health card stays
+      // in sync without needing a separate fetch.
+      if (s.stats) {
+        State.scheduleStats = {
+          recurring: s.stats.recurringActive || 0,
+          scheduled: s.stats.pendingScheduled || 0
+        };
+      }
     } catch {
       State.connected = false;
       State.qr = null;
       State.loading = null;
     }
     Connection.renderUI();
+    if (State.route === 'dashboard') Dashboard.render();
 
     // Once connected, keep contacts/groups in sync. Retries until we
     // actually get a list (handles flaky first call right after ready).
