@@ -206,6 +206,18 @@ body { background: var(--bg-grad); }
 }
 .brand__mark { width: 36px; height: 36px; flex: none; filter: drop-shadow(0 4px 14px rgba(37,211,102,0.25)); }
 .brand__mark svg { display: block; width: 100%; height: 100%; }
+.brand__dot {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: brand-dot-pulse 1.4s ease-in-out infinite;
+}
+.brand__dot--1 { animation-delay: 0s; }
+.brand__dot--2 { animation-delay: .18s; }
+.brand__dot--3 { animation-delay: .36s; }
+@keyframes brand-dot-pulse {
+  0%, 60%, 100% { opacity: .35; transform: scale(.7); }
+  30%           { opacity: 1;   transform: scale(1.1); }
+}
 .brand__text { line-height: 1.1; }
 .brand__name { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 18px; letter-spacing: -.02em; }
 .brand__sub { font-size: 11px; color: var(--text-muted); letter-spacing: .12em; text-transform: uppercase; font-weight: 600; margin-top: 2px; }
@@ -656,12 +668,18 @@ body { background: var(--bg-grad); }
 .feed__item {
   display: grid;
   grid-template-columns: 36px 1fr auto;
-  gap: var(--s-3);
+  grid-template-rows: auto auto;
+  column-gap: var(--s-3);
+  row-gap: 2px;
   padding: var(--s-3);
   border-radius: 10px;
   transition: background .14s var(--ease);
   align-items: center;
 }
+.feed__avatar { grid-row: 1 / 3; align-self: center; }
+.feed__main   { grid-row: 1; grid-column: 2; min-width: 0; }
+.feed__meta   { grid-row: 1; grid-column: 3; align-self: center; }
+.feed__msg    { grid-row: 2; grid-column: 2 / 4; min-width: 0; }
 .feed__item:hover { background: var(--hover); }
 .feed__avatar {
   width: 36px; height: 36px;
@@ -704,7 +722,7 @@ body { background: var(--bg-grad); }
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
-.feed__main { min-width: 0; }
+.feed__main {  }
 .feed__top { display: flex; align-items: center; gap: var(--s-2); justify-content: space-between; }
 .feed__id-block { min-width: 0; flex: 1; }
 .feed__name {
@@ -728,10 +746,20 @@ body { background: var(--bg-grad); }
   display: flex;
   align-items: center;
   gap: 4px;
+  direction: ltr;            /* phone numbers must read left-to-right */
+  justify-content: flex-end; /* but stay aligned to the right edge in RTL row */
+  font-feature-settings: "tnum","lnum";
+  font-variant-numeric: tabular-nums lining-nums;
 }
 .feed__sub-icon { display: inline-flex; align-items: center; color: var(--copper); }
 .feed__msg { color: var(--text-muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; }
-.feed__time { font-size: 11px; color: var(--text-dim); white-space: nowrap; align-self: center; }
+.feed__time { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+.feed__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
 .feed__empty { padding: var(--s-6); text-align: center; color: var(--text-muted); font-size: 12.5px; }
 
 /* ---------- 13. Quick tiles + Health ---------- */
@@ -1192,7 +1220,7 @@ select { appearance: none; -webkit-appearance: none; padding-inline-end: 32px; c
 /* Logs table — recipient column (name + id stacked) */
 .col-recipient { min-width: 170px; max-width: 240px; }
 .logs-name {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 5px;
   font-weight: 600;
@@ -1200,6 +1228,7 @@ select { appearance: none; -webkit-appearance: none; padding-inline-end: 32px; c
   color: var(--text);
   font-family: 'Heebo', sans-serif;
   max-width: 100%;
+  justify-content: flex-start;
 }
 .logs-name__text {
   overflow: hidden;
@@ -1209,11 +1238,12 @@ select { appearance: none; -webkit-appearance: none; padding-inline-end: 32px; c
 }
 .logs-name__icon { color: var(--text-dim); flex-shrink: 0; }
 .logs-id {
+  display: block;
   font-size: 10.5px;
   color: var(--text-muted);
-  margin-top: 1px;
+  margin-top: 2px;
   direction: ltr;
-  text-align: start;
+  text-align: end;          /* in an RTL row, end = right side, under the name */
   font-feature-settings: "tnum","lnum";
   font-variant-numeric: tabular-nums lining-nums;
   overflow: hidden;
@@ -1333,6 +1363,40 @@ select { appearance: none; -webkit-appearance: none; padding-inline-end: 32px; c
 .sched-item__meta { font-size: 11px; color: var(--text-dim); margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
 .sched-item__actions { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
 .sched-item--paused { opacity: 0.55; }
+
+/* On narrow screens, schedule items become 2-row grids:
+   row 1 = icon | content (full width) | actions
+   row 2 = icon spans, but content+actions release to a single line of pills */
+@media (max-width: 520px) {
+  .sched-item {
+    grid-template-columns: 28px 1fr;
+    gap: var(--s-2);
+    padding: var(--s-3) var(--s-2);
+  }
+  .sched-item__icon { width: 28px; height: 28px; }
+  .sched-item__icon svg { width: 12px; height: 12px; }
+  .sched-item__main { grid-column: 2; }
+  .sched-item__actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    border-top: 1px dashed var(--border);
+    padding-top: var(--s-2);
+    margin-top: var(--s-2);
+  }
+  .sched-item__line1 { gap: 4px; }
+  .sched-item__line1 .pill,
+  .sched-item__freq { font-size: 10.5px; padding: 1px 6px; }
+  .sched-item__msg {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  /* Card head — let the actions row wrap below the title cleanly. */
+  .card__actions { gap: 6px; flex-wrap: wrap; }
+  .card__actions .btn { padding: 5px 10px; font-size: 12px; }
+}
 
 /* ---------- 18. Settings cards ---------- */
 .qr-block {
@@ -1648,12 +1712,36 @@ select { appearance: none; -webkit-appearance: none; padding-inline-end: 32px; c
     min-height: 56px;
     background: transparent !important;
     color: var(--text-muted);
+    position: relative;
   }
   .nav__item .ico { width: 22px; height: 22px; }
   .nav__item span { font-size: 10.5px; font-weight: 600; }
   .nav__item.is-active::before { display: none; }
   .nav__item.is-active,
   .nav__item.is-active .ico { color: var(--accent); }
+  /* Float the count as a notification badge on top of the icon. */
+  .nav__item .nav__count {
+    position: absolute;
+    top: 4px;
+    /* In an RTL layout the icon sits visually centered, so we anchor the
+       badge to the right of center using calc + 50%. */
+    inset-inline-start: calc(50% + 4px);
+    background: var(--error);
+    color: #fff;
+    font-size: 9.5px;
+    font-weight: 700;
+    padding: 1px 5px;
+    min-width: 16px;
+    height: 16px;
+    box-sizing: border-box;
+    text-align: center;
+    line-height: 14px;
+    border-radius: 99px;
+    box-shadow: 0 0 0 2px var(--surface);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+  .nav__item .nav__count:empty,
+  .nav__item .nav__count[data-empty="1"] { display: none; }
 
   /* Compact topbar. */
   .topbar {
@@ -1697,7 +1785,14 @@ select { appearance: none; -webkit-appearance: none; padding-inline-end: 32px; c
   .stat__value { font-size: 22px; }
   /* Hide the spark line in stat cards — too cramped. */
   .spark { display: none; }
-  /* Recent-feed time column collapses below the message. */
-  .feed__item { flex-wrap: wrap; }
-  .feed__time { width: 100%; text-align: start; padding: 4px 0 0 48px; }
+  /* Recent feed: tighter spacing + allow message to wrap to 2 lines. */
+  .feed__item { row-gap: 4px; padding: var(--s-3) var(--s-2); }
+  .feed__msg {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }

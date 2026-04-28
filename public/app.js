@@ -733,7 +733,9 @@ const Dashboard = {
     $('[data-stat="failed"]').textContent = fmt.num(failed);
     $('[data-stat="pending"]').textContent = fmt.num(pending);
     $('[data-stat="pendingTotal"]').textContent = `${fmt.num(pending)} ממתינות`;
-    $('[data-stat="logsCount"]').textContent = fmt.num(total);
+    const logsBadge = $('[data-stat="logsCount"]');
+    logsBadge.textContent = fmt.num(total);
+    logsBadge.dataset.empty = total ? '0' : '1';
     const fill = $('[data-bar="success"]');
     if (fill) fill.style.width = `${successRate.toFixed(1)}%`;
 
@@ -782,11 +784,13 @@ const Dashboard = {
                 <div class="feed__name">${nameHTML}</div>
                 <div class="feed__sub">${subHTML}</div>
               </div>
-              <span class="pill ${cls}"><span class="dot"></span>${txt}</span>
             </div>
-            <div class="feed__msg">${escapeHtml(l.message)}</div>
           </div>
-          <div class="feed__time">${fmt.full(l.ts)}</div>
+          <div class="feed__meta">
+            <span class="pill ${cls}"><span class="dot"></span>${txt}</span>
+            <div class="feed__time">${fmt.full(l.ts)}</div>
+          </div>
+          <div class="feed__msg">${escapeHtml(l.message)}</div>
         </li>`;
       }).join('');
 
